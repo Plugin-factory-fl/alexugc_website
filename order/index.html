@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Order UGC Now | Alex Miller</title>
+  <meta name="description" content="Order authentic UGC videos from Alexander Miller. Choose a package or build a custom set by length and quantity, then complete your brief in secure Stripe checkout.">
+  <meta name="theme-color" content="#f5f3eb">
+  <meta property="og:title" content="Order UGC Now | Alex Miller">
+  <meta property="og:description" content="Pick a package or build custom videos by length. Brief and payment handled securely in Stripe.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://plugin-factory-fl.github.io/alexugc_website/order/">
+  <meta property="og:image" content="https://plugin-factory-fl.github.io/alexugc_website/assets/images/social-preview.jpg">
+  <link rel="canonical" href="https://plugin-factory-fl.github.io/alexugc_website/order/">
+  <link rel="icon" href="../assets/images/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+  <script>document.documentElement.classList.add("js")</script>
+  <script defer src="order.js"></script>
+</head>
+<body class="order-page">
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="nav" id="top">
+    <a class="brand" href="../" aria-label="Alex Miller UGC home"><span>AM<span class="brand-dot">.</span></span><small>CREATOR<br>UGC</small></a>
+    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="navlinks"><span class="sr-only">Toggle navigation</span><span></span><span></span></button>
+    <nav id="navlinks" aria-label="Main navigation">
+      <a href="../#work">Work</a>
+      <a href="../#services">Services</a>
+      <a href="../#packages">Packages</a>
+      <a href="./" aria-current="page">Order</a>
+      <a href="../#about">About</a>
+    </nav>
+    <a class="button button-dark nav-cta" href="#custom-builder">Build custom order <span aria-hidden="true">↗</span></a>
+  </header>
+
+  <noscript>
+    <div class="order-noscript shell">JavaScript is required to build a custom order and open checkout. Enable JavaScript, then refresh this page. Package links still work below if your browser allows them.</div>
+  </noscript>
+
+  <main id="main" class="order-main">
+    <section class="order-hero shell" aria-labelledby="order-title">
+      <span class="kicker">ORDER <span>/ UGC VIDEOS</span></span>
+      <h1 id="order-title">Order UGC <em>now.</em></h1>
+      <p class="order-hero-copy">Choose a ready package, or build a custom set by length and quantity. Your creative brief is collected securely in Stripe before payment.</p>
+    </section>
+
+    <div class="order-layout shell">
+      <aside class="order-summary" aria-labelledby="summary-heading">
+        <div class="order-summary-card">
+          <span class="order-summary-label" id="summary-heading">Your selection</span>
+          <p class="order-summary-mode" id="summary-mode">Custom length builder</p>
+          <p class="order-summary-detail" id="summary-detail">30s · 1 video · estimate</p>
+          <div class="order-summary-price-row">
+            <span>Unit</span>
+            <strong id="summary-unit">$100 each</strong>
+          </div>
+          <div class="order-summary-price-row order-summary-total">
+            <span>Estimated total</span>
+            <strong id="summary-total">$100</strong>
+          </div>
+          <p class="order-live-price" id="price-live" role="status" aria-live="polite">Estimate $100 for 1 × 30s video at $100.</p>
+          <p class="order-qty-note" id="qty-checkout-note">Stripe locks quantity at 1 for a single video. Enter brand, script, and optional shared links before payment.</p>
+
+          <a class="button button-accent order-checkout-btn" id="custom-checkout" href="#" target="_blank" rel="noopener noreferrer" hidden>Continue to secure checkout <span aria-hidden="true">↗</span></a>
+          <p class="order-pending" id="checkout-pending" hidden>Custom checkout setup pending for this length. Package checkouts above are live.</p>
+
+          <div class="order-brief-panel">
+            <h2>Your brief, built in at checkout</h2>
+            <p>Stripe collects everything needed before payment. No form to fill on this page.</p>
+            <ul>
+              <li>
+                <strong>Brand</strong>
+                <span>Your brand or product name</span>
+              </li>
+              <li>
+                <strong>Script and creative directions</strong>
+                <span>What to say, show, or emphasize</span>
+              </li>
+              <li>
+                <strong>Shared product or file links</strong>
+                <span>Optional Drive, Dropbox, or product page links</span>
+              </li>
+            </ul>
+            <p class="order-brief-tip">Two or more videos: $85 each. For multi-video orders, Stripe starts at quantity 2. Set the final quantity there so the exact total matches. Brand and script are required at checkout. Shared links are optional. For mixed lengths, send each length and quantity in your shared brief.</p>
+          </div>
+        </div>
+      </aside>
+
+      <div class="order-content">
+        <section class="order-packages" aria-labelledby="packages-heading">
+          <div class="order-section-head">
+            <span class="kicker">01 <span>/ PACKAGES</span></span>
+            <h2 id="packages-heading">Ready-made packages</h2>
+            <p>Fixed video counts with a creative brief collected at Stripe checkout.</p>
+          </div>
+          <div class="order-package-grid">
+            <article class="order-package-card" data-package="starter">
+              <span class="order-package-number">01</span>
+              <h3>The Starter</h3>
+              <p class="order-package-desc">A single story, done right.</p>
+              <div class="order-package-price"><span>$</span>90</div>
+              <span class="order-package-deliverable">1 custom UGC video</span>
+              <ul>
+                <li>Creative concept and video</li>
+                <li>Vertical 9:16 format</li>
+                <li>Captions and licensed music</li>
+                <li>One revision round</li>
+                <li>Organic social usage</li>
+              </ul>
+              <a class="button button-outline" href="https://buy.stripe.com/5kQ8wHfIT46ceMOgu22Nq0t" target="_blank" rel="noopener noreferrer">Order The Starter <span aria-hidden="true">↗</span></a>
+            </article>
+
+            <article class="order-package-card is-featured" data-package="growth">
+              <span class="order-popular">MOST POPULAR</span>
+              <span class="order-package-number">02</span>
+              <h3>The Growth</h3>
+              <p class="order-package-desc">More stories. More ways to connect.</p>
+              <div class="order-package-price"><span>$</span>250</div>
+              <span class="order-package-deliverable">3 custom UGC videos</span>
+              <ul>
+                <li>Creative concepts and videos</li>
+                <li>Vertical 9:16 formats</li>
+                <li>Captions and licensed music</li>
+                <li>One revision round per video</li>
+                <li>Organic social usage</li>
+              </ul>
+              <a class="button button-accent" href="https://buy.stripe.com/28E4grdAL3285ce6Ts2Nq0u" target="_blank" rel="noopener noreferrer">Order The Growth <span aria-hidden="true">↗</span></a>
+            </article>
+
+            <article class="order-package-card" data-package="scale">
+              <span class="order-package-number">03</span>
+              <h3>The Scale</h3>
+              <p class="order-package-desc">A ready-to-share content collection.</p>
+              <div class="order-package-price"><span>$</span>420</div>
+              <span class="order-package-deliverable">5 custom UGC videos</span>
+              <ul>
+                <li>Creative concepts and videos</li>
+                <li>Vertical 9:16 formats</li>
+                <li>Captions and licensed music</li>
+                <li>One revision round per video</li>
+                <li>Organic social usage</li>
+              </ul>
+              <a class="button button-outline" href="https://buy.stripe.com/bJe4graoz8ms48a6Ts2Nq0v" target="_blank" rel="noopener noreferrer">Order The Scale <span aria-hidden="true">↗</span></a>
+            </article>
+          </div>
+        </section>
+
+        <section class="order-builder" id="custom-builder" aria-labelledby="builder-heading">
+          <div class="order-section-head">
+            <span class="kicker">02 <span>/ CUSTOM BUILDER</span></span>
+            <h2 id="builder-heading">Need a different length or count?</h2>
+            <p>Pick a length and quantity for an estimate. One video is $100. Two or more are $85 each. For two or more, Stripe starts at quantity 2. Choose the final quantity in Stripe before paying.</p>
+          </div>
+
+          <div class="order-builder-panel">
+            <fieldset class="order-duration-field">
+              <legend>Video length</legend>
+              <div class="order-duration-grid" role="group" aria-label="Choose video length">
+                <button type="button" class="order-duration" data-duration="15" aria-pressed="false">15s</button>
+                <button type="button" class="order-duration is-selected" data-duration="30" aria-pressed="true">30s</button>
+                <button type="button" class="order-duration" data-duration="45" aria-pressed="false">45s</button>
+                <button type="button" class="order-duration" data-duration="60" aria-pressed="false">60s</button>
+                <button type="button" class="order-duration" data-duration="90" aria-pressed="false">90s</button>
+                <button type="button" class="order-duration" data-duration="120" aria-pressed="false">120s</button>
+              </div>
+            </fieldset>
+
+            <div class="order-qty-field">
+              <label for="order-qty">How many videos?</label>
+              <div class="order-qty-controls">
+                <button type="button" id="qty-minus" class="order-qty-btn" aria-label="Decrease quantity">−</button>
+                <input id="order-qty" name="quantity" type="number" min="1" max="100" value="1" inputmode="numeric">
+                <button type="button" id="qty-plus" class="order-qty-btn" aria-label="Increase quantity">+</button>
+              </div>
+              <p class="order-qty-help">Estimate quantity: <strong id="order-qty-display">1</strong> (1 to 100). For one video, Stripe locks quantity at 1. For two or more, set the final quantity in Stripe.</p>
+            </div>
+
+            <div class="order-builder-pricing">
+              <div>
+                <span class="order-builder-pricing-label">Pricing</span>
+                <p><strong>$100</strong> for one video · <strong>$85</strong> each for two or more</p>
+              </div>
+              <button type="button" class="text-link" id="choose-custom">Use this custom estimate <span aria-hidden="true">↗</span></button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="shell">
+    <a class="brand" href="../"><span>AM<span class="brand-dot">.</span></span><small>CREATOR<br>UGC</small></a>
+    <p>Real content. Real people.<br>Make your next scroll worth it.</p>
+    <div class="footer-links">
+      <a href="../#work">Work</a>
+      <a href="../#packages">Packages</a>
+      <a href="./">Order</a>
+      <a href="https://instagram.com/alex_ugc_pro" target="_blank" rel="noopener noreferrer">Instagram ↗</a>
+    </div>
+    <span class="copyright">© <span id="year">2026</span> Alex Miller</span>
+  </footer>
+</body>
+</html>
