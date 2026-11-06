@@ -22,11 +22,12 @@ $$('a', nav).forEach(a => a.addEventListener('click', () => { menuButton.setAttr
 const modal = $('.video-modal');
 const modalVideo = $('#modal-video');
 let previousFocus;
-$$('.video-card').forEach(card => card.addEventListener('click', () => {
+$$('.video-card, .hero-play').forEach(card => card.addEventListener('click', () => {
   previousFocus = document.activeElement;
   modalVideo.src = `assets/videos/${card.dataset.video}.mp4`;
   modalVideo.poster = `assets/images/${card.dataset.video}.jpg`;
   $('#modal-title').textContent = card.dataset.title;
+  $$('.hero-video video').forEach(v => v.pause());
   modal.showModal();
   modalVideo.play().catch(() => {});
 }));
@@ -35,15 +36,23 @@ $('.modal-close').addEventListener('click', closeModal);
 modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 modal.addEventListener('close', () => { modalVideo.pause(); });
 modal.addEventListener('cancel', e=>{e.preventDefault();closeModal();});
-const heroVideo = $('.stage-video video');
-const heroToggle = $('#hero-toggle');
-heroToggle.classList.toggle('is-paused',heroVideo.paused);
-heroToggle.addEventListener('click',() => heroVideo.paused ? heroVideo.play().catch(()=>{}) : heroVideo.pause());
-heroVideo.addEventListener('play',()=>{heroToggle.setAttribute('aria-label','Pause background video');heroToggle.innerHTML='Pause <span aria-hidden="true">Ⅱ</span>';});
-heroVideo.addEventListener('pause',()=>{heroToggle.setAttribute('aria-label','Play background video');heroToggle.innerHTML='Play <span aria-hidden="true">▶</span>';});
-if (reduceMotion) { heroVideo.removeAttribute('autoplay'); heroVideo.pause(); }
+$$('.hero-sound').forEach(button => {
+  const video = button.closest('.hero-video').querySelector('video');
+  const sync = () => { button.innerHTML = video.muted ? '<span aria-hidden="true">↗</span> Sound' : '<span aria-hidden="true">×</span> Mute'; button.setAttribute('aria-label', video.muted ? 'Unmute this video' : 'Mute this video'); };
+  button.addEventListener('click', () => {
+    if(video.muted) $$('.hero-video video').forEach(v => { v.muted = true; });
+    video.muted = !video.muted;
+    if(video.paused) video.play().catch(() => {});
+    $$('.hero-video video').forEach(v => v.dispatchEvent(new Event('volumechange')));
+  });
+  video.addEventListener('volumechange', sync); sync();
+});
+$$('.hero-video video').forEach(video => {
+  if (reduceMotion) { video.removeAttribute('autoplay'); video.pause(); }
+});
 if ('IntersectionObserver' in window && !reduceMotion) {
-  new IntersectionObserver(entries => entries.forEach(e => e.isIntersecting ? heroVideo.play().catch(() => {}) : heroVideo.pause()), {threshold:.2}).observe(heroVideo);
+  const heroObserver = new IntersectionObserver(entries => entries.forEach(e => e.isIntersecting ? e.target.play().catch(() => {}) : e.target.pause()), {threshold:.2});
+  $$('.hero-video video').forEach(video => heroObserver.observe(video));
 }
 const form = $('#brief-form');
 const output = $('#brief-output');
