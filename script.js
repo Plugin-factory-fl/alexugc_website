@@ -4,6 +4,7 @@ const $ = (q, context = document) => context.querySelector(q);
 const $$ = (q, context = document) => [...context.querySelectorAll(q)];
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const reveals = $$('.reveal');
+setTimeout(() => reveals.forEach(el => el.classList.add('is-visible')),1500);
 if ('IntersectionObserver' in window && !reduceMotion) {
   const observer = new IntersectionObserver(entries => {
     entries.forEach(entry => { if (entry.isIntersecting) { entry.target.classList.add('is-visible'); observer.unobserve(entry.target); } });
@@ -32,9 +33,15 @@ $$('.video-card').forEach(card => card.addEventListener('click', () => {
 const closeModal = () => { modalVideo.pause(); modalVideo.removeAttribute('src'); modalVideo.load(); modal.close(); previousFocus?.focus(); };
 $('.modal-close').addEventListener('click', closeModal);
 modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
-modal.addEventListener('close', () => { modalVideo.pause(); modalVideo.removeAttribute('src'); });
+modal.addEventListener('close', () => { modalVideo.pause(); });
+modal.addEventListener('cancel', e=>{e.preventDefault();closeModal();});
 const heroVideo = $('.stage-video video');
-if (reduceMotion) { heroVideo.removeAttribute('autoplay'); heroVideo.pause(); heroVideo.controls = true; }
+const heroToggle = $('#hero-toggle');
+heroToggle.classList.toggle('is-paused',heroVideo.paused);
+heroToggle.addEventListener('click',() => heroVideo.paused ? heroVideo.play().catch(()=>{}) : heroVideo.pause());
+heroVideo.addEventListener('play',()=>{heroToggle.setAttribute('aria-label','Pause background video');heroToggle.innerHTML='Pause <span aria-hidden="true">Ⅱ</span>';});
+heroVideo.addEventListener('pause',()=>{heroToggle.setAttribute('aria-label','Play background video');heroToggle.innerHTML='Play <span aria-hidden="true">▶</span>';});
+if (reduceMotion) { heroVideo.removeAttribute('autoplay'); heroVideo.pause(); }
 if ('IntersectionObserver' in window && !reduceMotion) {
   new IntersectionObserver(entries => entries.forEach(e => e.isIntersecting ? heroVideo.play().catch(() => {}) : heroVideo.pause()), {threshold:.2}).observe(heroVideo);
 }
