@@ -1,3 +1,4 @@
 User-agent: *
 Allow: /
-Sitemap: https://plugin-factory-fl.github.io/alexugc_website/sitemap.xml
+
+Sitemap: https://alexugcpro.com/sitemap.xml

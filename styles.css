@@ -7,7 +7,7 @@
 
 [hidden]{display:none!important}.hero-toggle{position:absolute;inset:auto 11px 11px auto;z-index:3;border:1px solid #ffffff80;border-radius:20px;background:#171910aa;color:white;font-size:9px;padding:5px 10px;cursor:pointer;backdrop-filter:blur(7px)}.hero-toggle span{margin-left:4px}#prepared-brief{min-height:180px}.brief-instagram{margin-top:18px;margin-bottom:10px;display:inline-flex}#brief-output{scroll-margin-bottom:100px}@media (max-width:760px){.brief-instagram{justify-content:center;max-width:100%;line-height:1.7;margin-top:16px;margin-bottom:16px}#prepared-brief{min-height:215px}}
 
-body:has(#brief-output:not([hidden])) .mobile-cta{display:none}body:has(#brief-form:focus-within) .mobile-cta{display:none}
+
 
 /* Accessible reading size for all visible copy, including small labels. */
 .nav,.nav nav,.nav nav a,.nav .button,.proof{flex-wrap:wrap}
@@ -210,7 +210,7 @@ body:has(#brief-output:not([hidden])) .mobile-cta{display:none}body:has(#brief-f
 
 /* ===== Order page + sticky Order CTA ===== */
 
-/* Sticky homepage CTA: desktop bottom-right; mobile uses .mobile-cta only */
+/* Sticky order CTA on both pages: bottom-right at every screen size. */
 .order-sticky-cta{
   display:none;
 }
@@ -235,16 +235,15 @@ body:has(#brief-output:not([hidden])) .mobile-cta{display:none}body:has(#brief-f
     display:flex;
     position:fixed;
     bottom:max(12px, env(safe-area-inset-bottom));
-    left:max(15px, env(safe-area-inset-left));
+    left:auto;
     right:max(15px, env(safe-area-inset-right));
+    max-width:calc(100vw - 30px);
     z-index:15;
     box-shadow:0 5px 24px #1c1d1833;
     font-size:14px;
     min-height:46px;
   }
   body{padding-bottom:calc(72px + env(safe-area-inset-bottom))}
-  body:has(#brief-output:not([hidden])) .mobile-cta,
-  body:has(#brief-form:focus-within) .mobile-cta{display:none}
 }
 
 /* Order page */
@@ -693,4 +692,248 @@ body:has(#brief-output:not([hidden])) .mobile-cta{display:none}body:has(#brief-f
 }
 @media(prefers-reduced-motion:reduce){
   .order-package-card:hover{transform:none}
+}
+
+/* Dedicated order CTAs only: white on #15803d (large-text contrast vs #052e16). */
+.button-order-ugc{
+  background:#15803d;
+  color:#fff;
+  border-color:#052e16;
+  box-shadow:0 6px 20px #15803d33;
+  animation:order-ugc-glow 3.2s ease-in-out 3;
+  transition:background .2s ease,box-shadow .2s ease,transform .2s ease;
+}
+.button-order-ugc:hover{
+  background:#166534;
+  color:#fff;
+  transform:translateY(-2px);
+  animation:none;
+  box-shadow:0 8px 26px #15803d55;
+}
+.button-order-ugc:focus-visible{
+  outline:3px solid #052e16;
+  outline-offset:4px;
+  box-shadow:0 0 0 3px #fff,0 8px 26px #15803d55;
+  animation:none;
+}
+@keyframes order-ugc-glow{
+  0%,100%{box-shadow:0 6px 20px #15803d33}
+  50%{box-shadow:0 6px 26px #15803d55,0 0 0 4px #15803d14}
+}
+@media(prefers-reduced-motion:reduce){
+  .button-order-ugc{animation:none;transition:none}
+  .button-order-ugc:hover{transform:none}
+}
+
+/* Hosted Google Forms brief flow: no customer script is stored in browser URLs. */
+.order-steps{
+  list-style:decimal;
+  margin:8px 0 18px;
+  padding:0 0 0 22px;
+  color:#c5ccb5;
+  font-size:14px;
+  line-height:1.55;
+  display:grid;
+  gap:6px;
+}
+.order-brief-panel h2,
+.order-brief-panel h3{font-size:16px;line-height:1.4;margin:24px 0 10px;color:#fff}
+.order-brief-panel .button{font-size:14px;min-height:44px;width:100%;gap:10px;cursor:pointer}
+.order-brief-panel .button.is-disabled,
+.order-brief-panel .button[aria-disabled="true"]{
+  opacity:.45;
+  cursor:not-allowed;
+  pointer-events:none;
+  transform:none;
+}
+.order-reference-box{padding:16px;border:1px solid #647059;border-radius:4px;margin:18px 0}
+.order-reference-box>span{display:block;font-size:14px;color:#c6cebb}
+.order-reference-box code{display:block;overflow-wrap:anywhere;user-select:all;font-size:16px;color:#fff;margin:8px 0 14px}
+.order-reference-box .button-outline{border-color:#c6cebb;color:#fff;background:transparent}
+.order-reference-box .button-outline:hover{background:#34402e}
+.order-reference-box p:empty{display:none}
+.order-brief-confirm{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  font-size:14px;
+  line-height:1.55;
+  cursor:pointer;
+  min-height:44px;
+  padding:8px 0;
+  margin:8px 0 14px;
+}
+.order-brief-confirm input{
+  width:22px;
+  height:22px;
+  flex-shrink:0;
+  margin:2px 0 0;
+  accent-color:#15803d;
+}
+.order-checkout-btn[aria-disabled="true"]{opacity:.55;cursor:not-allowed;transform:none;pointer-events:none}
+.order-package-card [data-select-package]{cursor:pointer;min-height:44px}
+.order-duration{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  padding:10px 8px;
+  min-height:64px;
+  line-height:1.2;
+}
+.order-duration-label{font-size:14px;font-weight:700}
+.order-duration-price{font-size:12px;font-weight:500;opacity:.85}
+.sticky-cta-space{height:24px}
+@media(max-width:760px){
+  .sticky-cta-space{height:calc(88px + env(safe-area-inset-bottom))}
+  .order-duration{min-height:58px}
+  .order-duration-label{font-size:13px}
+  .order-duration-price{font-size:11px}
+}
+
+
+/* ===== Service pages + alternate platform order CTAs ===== */
+.service-page{padding-bottom:48px}
+.service-hero{padding-top:48px;padding-bottom:28px}
+.service-hero h1{
+  font-family:var(--serif);
+  font-weight:400;
+  font-size:clamp(40px,5.5vw,72px);
+  line-height:1.05;
+  letter-spacing:-.03em;
+  margin:18px 0 18px;
+}
+.service-lead{
+  max-width:640px;
+  font-size:16px;
+  line-height:1.75;
+  color:var(--muted);
+  margin:0 0 22px;
+}
+.service-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:18px 28px;
+  align-items:center;
+}
+.service-body{padding:10px 0 40px}
+.service-body h2{
+  font-family:var(--serif);
+  font-weight:400;
+  font-size:clamp(28px,3vw,40px);
+  margin:28px 0 14px;
+}
+.service-body > p{
+  font-size:15px;
+  line-height:1.75;
+  color:var(--muted);
+  max-width:680px;
+}
+.service-points{
+  margin:0 0 24px;
+  padding:0;
+  list-style:none;
+  display:grid;
+  gap:12px;
+  max-width:680px;
+}
+.service-points li{
+  font-size:15px;
+  line-height:1.65;
+  color:var(--muted);
+  padding:14px 16px;
+  border:1px solid var(--line);
+  border-radius:4px;
+  background:#fffdf8;
+}
+.service-cluster{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px;
+  margin:28px 0 10px;
+}
+.service-cluster-card{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  padding:18px 16px;
+  border:1px solid var(--line);
+  border-radius:4px;
+  min-height:88px;
+  font-size:14px;
+}
+.service-cluster-card strong{font-size:16px}
+.service-cluster-card span{color:var(--muted);line-height:1.5}
+.service-cluster-card:hover{border-color:var(--ink)}
+.filmstrip-compact{grid-template-columns:repeat(3,minmax(0,1fr))}
+.service-home-links{display:flex;flex-wrap:wrap;gap:14px 22px;margin-top:8px}
+
+.platform-order{padding:28px 0 20px}
+.platform-order-card{
+  background:#141812;
+  color:var(--paper);
+  border-radius:6px;
+  padding:32px 28px;
+  box-shadow:0 14px 40px #1c1d1822;
+}
+.platform-order-card h2{
+  font-family:var(--serif);
+  font-weight:400;
+  font-size:clamp(28px,3.2vw,40px);
+  margin:0 0 12px;
+  line-height:1.15;
+}
+.platform-order-card > p{
+  margin:0 0 22px;
+  font-size:15px;
+  line-height:1.7;
+  color:#b9c0ac;
+  max-width:640px;
+}
+.platform-order-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+}
+.button-fiverr,
+.button-upwork{
+  min-height:44px;
+  font-size:14px;
+  padding:12px 20px;
+  gap:14px;
+}
+.button-fiverr{
+  background:#15803d;
+  color:#fff;
+  border-color:#052e16;
+}
+.button-fiverr:hover{background:#166534;color:#fff}
+.button-upwork{
+  background:#1c1d18;
+  color:#fff;
+  border:1px solid #c6cebb;
+}
+.button-upwork:hover{background:#2a2c24;color:#fff}
+.button-fiverr:focus-visible,
+.button-upwork:focus-visible{
+  outline:3px solid #052e16;
+  outline-offset:4px;
+}
+
+.order-faq{margin-top:36px;margin-bottom:12px}
+.order-faq .faq-list{max-width:720px}
+.order-faq summary{font-size:15px}
+.order-faq p{font-size:14px}
+
+@media(max-width:900px){
+  .service-cluster{grid-template-columns:1fr}
+  .filmstrip-compact{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  .service-hero{padding-top:32px}
+  .service-lead{font-size:15px}
+  .platform-order-card{padding:24px 18px}
+  .platform-order-actions{flex-direction:column}
+  .platform-order-actions .button{width:100%;justify-content:space-between}
 }

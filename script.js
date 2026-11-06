@@ -2,6 +2,7 @@
 'use strict';
 const $ = (q, context = document) => context.querySelector(q);
 const $$ = (q, context = document) => [...context.querySelectorAll(q)];
+const assetBase = document.body?.dataset?.assetBase || '';
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const reveals = $$('.reveal');
 setTimeout(() => reveals.forEach(el => el.classList.add('is-visible')),1500);
@@ -24,8 +25,8 @@ const modalVideo = $('#modal-video');
 let previousFocus;
 $$('.video-card, .hero-play').forEach(card => card.addEventListener('click', () => {
   previousFocus = document.activeElement;
-  modalVideo.src = `assets/videos/${card.dataset.video}.mp4`;
-  modalVideo.poster = `assets/images/${card.dataset.video}.jpg`;
+  modalVideo.src = `${assetBase}assets/videos/${card.dataset.video}.mp4`;
+  modalVideo.poster = `${assetBase}assets/images/${card.dataset.video}.jpg`;
   $('#modal-title').textContent = card.dataset.title;
   $$('.hero-video video').forEach(v => v.pause());
   modal.showModal();
