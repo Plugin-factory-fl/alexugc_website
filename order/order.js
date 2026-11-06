@@ -5,15 +5,15 @@
  * Custom checkout links by duration (seconds).
  * Live Stripe Payment Links by duration.
  * - single: fixed quantity 1 at $100
- * - bundle: adjustable quantity 2..100 at $85 each (final qty set in Stripe)
+ * - bundle: first video $100; optional extras $85 each, quantity 1..99 (final qty set in Stripe)
  */
 const CUSTOM_CHECKOUT_LINKS = {
-  15:  { single: 'https://buy.stripe.com/28EdR1aoz7io3464Lk2Nq0w', bundle: 'https://buy.stripe.com/4gM7sDaozgSYgUWgu22Nq0x' },
-  30:  { single: 'https://buy.stripe.com/14AaEP1S36ekbAC3Hg2Nq0A', bundle: 'https://buy.stripe.com/aFa6oz54f1Y48oq5Po2Nq0y' },
-  45:  { single: 'https://buy.stripe.com/5kQ28jgMX1Y49su6Ts2Nq0z', bundle: 'https://buy.stripe.com/bJeaEP9kv3285ce5Po2Nq0B' },
-  60:  { single: 'https://buy.stripe.com/00w6ozfIT32848agu22Nq0C', bundle: 'https://buy.stripe.com/cNi5kv7cn1Y49su91A2Nq0D' },
-  90:  { single: 'https://buy.stripe.com/6oU4greEPgSYeMO7Xw2Nq0E', bundle: 'https://buy.stripe.com/dRmdR1fITgSYbAC1z82Nq0F' },
-  120: { single: 'https://buy.stripe.com/cNieV5gMXgSY3462Dc2Nq0G', bundle: 'https://buy.stripe.com/9B6eV5aoz3289sub9I2Nq0H' }
+  15:  { single: 'https://buy.stripe.com/28EdR1aoz7io3464Lk2Nq0w', bundle: 'https://buy.stripe.com/5kQdR1gMXfOU5cefpY2Nq0I' },
+  30:  { single: 'https://buy.stripe.com/14AaEP1S36ekbAC3Hg2Nq0A', bundle: 'https://buy.stripe.com/7sYcMXeEPbyEdIKdhQ2Nq0M' },
+  45:  { single: 'https://buy.stripe.com/5kQ28jgMX1Y49su6Ts2Nq0z', bundle: 'https://buy.stripe.com/14A9AL2W7byE346cdM2Nq0N' },
+  60:  { single: 'https://buy.stripe.com/00w6ozfIT32848agu22Nq0C', bundle: 'https://buy.stripe.com/aFaaEPbsD5ageMO91A2Nq0O' },
+  90:  { single: 'https://buy.stripe.com/6oU4greEPgSYeMO7Xw2Nq0E', bundle: 'https://buy.stripe.com/6oU28j9kv7io8oq7Xw2Nq0P' },
+  120: { single: 'https://buy.stripe.com/cNieV5gMXgSY3462Dc2Nq0G', bundle: 'https://buy.stripe.com/28E9AL2W71Y4bAC3Hg2Nq0Q' }
 };
 
 const PACKAGES = {
@@ -225,7 +225,7 @@ function renderSummary() {
   if (qtyNote) {
     qtyNote.textContent = qty === 1
       ? 'Stripe locks quantity at 1 for a single video. Enter brand, script, and optional shared links before payment.'
-      : 'Stripe starts multi-video checkout at quantity 2. Set your final quantity there (2 to 100). The exact total is calculated in Stripe. Enter brand, script, and optional shared links before payment.';
+      : 'Stripe includes your first video at $100. Add extra videos there at $85 each for your final quantity. The exact total is calculated in Stripe. Enter brand, script, and optional shared links before payment.';
   }
 
   if (checkout && pending) {
