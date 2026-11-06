@@ -225,7 +225,7 @@ function renderSummary() {
   if (qtyNote) {
     qtyNote.textContent = qty === 1
       ? 'Stripe locks quantity at 1 for a single video. Enter brand, script, and optional shared links before payment.'
-      : 'Stripe includes your first video at $100. Add extra videos there at $85 each for your final quantity. The exact total is calculated in Stripe. Enter brand, script, and optional shared links before payment.';
+      : 'Stripe includes your first video at $100. Add extra videos there at $85 each for an average of $85 per video on larger orders. The exact total is calculated in Stripe. Enter brand, script, and optional shared links before payment.';
   }
 
   if (checkout && pending) {
