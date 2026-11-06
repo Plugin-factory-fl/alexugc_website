@@ -13,7 +13,7 @@ No framework, build step, or server-side processing is required. The site is pla
 ## Features
 
 - Seven optimized, poster-first UGC videos with a keyboard-accessible native video dialog
-- Three live Stripe Payment Links: Starter $249, Growth $649, and Scale $999
+- Three live Stripe Payment Links: Starter $90, Growth $250, and Scale $420
 - Verified Upwork profile facts and supplied Fiverr, Billo, Instagram, and TikTok links
 - Responsive editorial layout with reduced-motion support
 - A client-side brief builder that creates copyable project details without storing or transmitting them
@@ -22,4 +22,4 @@ Portfolio media and creator imagery are supplied by Alexander Miller. No unverif
 
 ## Deployment
 
-Source branch: `ugc-launch`. GitHub Pages publishes this branch from the repository root. Changes merged to `main` can be promoted using the same branch update flow.
+Source and deployment branch: `main`. GitHub Pages publishes `main` from the repository root. The complete working tree, including its Git history, is also kept at `/workspace/ugc-site` on the agent computer.
