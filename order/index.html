@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>UGC Video Pricing &amp; Packages | Alex Miller</title>
-  <meta name="description" content="UGC services pricing from Alexander Miller. UGC video packages start at $90. Custom UGC video cost is based on length and quantity. Submit your brief, then pay with Stripe.">
+  <title>Order UGC Videos | Alex Miller</title>
+  <meta name="description" content="Order UGC from Alexander Miller in a few quick steps. Full-service videos from $80, raw footage from $64, b-roll clips at $7 each. Share your script, then pay securely with Stripe.">
   <meta name="google-site-verification" content="j1OPjEpCe_sDV97BjxS5veO-FtokwcFiBUsz4R5Y9y0">
   <meta name="theme-color" content="#f5f3eb">
-  <meta property="og:title" content="UGC Video Pricing &amp; Packages | Alex Miller">
-  <meta property="og:description" content="See UGC creator pricing, packages, and custom length rates. Submit your Google Forms brief, then pay securely with Stripe.">
+  <meta property="og:title" content="Order UGC Videos | Alex Miller">
+  <meta property="og:description" content="Order full-service UGC videos, raw footage, or b-roll clips in a few quick steps, then pay securely with Stripe.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://alexugcpro.com/order/">
   <meta property="og:image" content="https://alexugcpro.com/assets/images/social-preview.jpg">
@@ -19,6 +19,8 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../styles.css">
   <script>document.documentElement.classList.add("js")</script>
+  <script defer src="pricing.js"></script>
+  <script defer src="brief.js"></script>
   <script defer src="order.js"></script>
   <script defer src="../analytics.js"></script>
 </head>
@@ -35,194 +37,164 @@
       <a href="./" aria-current="page">Order</a>
       <a href="../#about">About</a>
     </nav>
-    <a class="button button-order-ugc nav-cta" href="#order-builder">Order UGC Now <span aria-hidden="true">↗</span></a>
+    <a class="button button-order-ugc nav-cta" href="./">Order UGC Now <span aria-hidden="true">↗</span></a>
   </header>
 
   <noscript>
-    <div class="order-noscript shell">JavaScript is required to select an order and generate your brief reference. Enable JavaScript, then refresh this page.</div>
+    <div class="order-noscript shell">JavaScript is required to place an order on this page. Enable JavaScript and refresh, or order through Fiverr or Upwork below.</div>
   </noscript>
 
-  <main id="main" class="order-main">
-    <section class="order-hero shell" aria-labelledby="order-title">
-      <span class="kicker">ORDER <span>/ UGC VIDEOS</span></span>
-      <h1 id="order-title">UGC video pricing built around your brief</h1>
-      <p class="order-hero-copy">UGC video packages and custom rates for brands. Choose a package or length, submit your Google Forms brief with the order reference, then pay securely with Stripe.</p>
-    </section>
+  <main id="main" class="order-main wizard-main">
+    <h1 class="sr-only" id="order-title">Order UGC videos</h1>
+    <div class="wizard shell" id="order-wizard" data-state="loading">
+      <div class="wizard-progress" aria-hidden="true"><span class="wizard-progress-bar" id="wizard-progress-bar"></span></div>
+      <p class="wizard-step-count" id="wizard-step-count" aria-live="polite"></p>
 
-    <div class="order-layout shell">
-      <aside class="order-summary" aria-labelledby="summary-heading">
-        <div class="order-summary-card">
-          <span class="order-summary-label" id="summary-heading">Your selection</span>
-          <p class="order-summary-mode" id="summary-mode">Custom length builder</p>
-          <p class="order-summary-detail" id="summary-detail">15s · 1 video · estimate</p>
-          <div class="order-summary-price-row">
-            <span>Unit</span>
-            <strong id="summary-unit">$80 each</strong>
-          </div>
-          <div class="order-summary-price-row order-summary-total">
-            <span>Estimated total</span>
-            <strong id="summary-total">$80</strong>
-          </div>
-          <p class="order-live-price" id="price-live" role="status" aria-live="polite">Estimate $80 for 1 × 15s video at $80 each.</p>
-          <p class="order-qty-note" id="qty-checkout-note">Set your final quantity (1-100) in Stripe at $80 per 15s video. Use the same order reference for your brief and payment.</p>
+      <form class="wizard-stage" id="wizard-form" novalidate autocomplete="on">
+        <!-- Honeypot for bots; real buyers never see it. -->
+        <div class="wizard-hp" aria-hidden="true"><label>Website<input type="text" name="website" id="field-website" tabindex="-1" autocomplete="off"></label></div>
 
-          <ol class="order-steps" aria-label="Ordering steps">
-            <li>Choose your videos</li>
-            <li>Submit your Google Forms brief</li>
-            <li>Pay and match the order</li>
-          </ol>
-
-          <section class="order-brief-panel" id="order-brief-flow" aria-labelledby="brief-flow-heading">
-            <h2 id="brief-flow-heading">2. Submit your Google Forms brief</h2>
-            <p>Google Forms opens in a separate tab. Return here after submitting. This page cannot automatically verify that your brief was submitted.</p>
-            <div class="order-reference-box">
-              <span>Order reference</span>
-              <code id="brief-reference" aria-live="polite">Generated when this page loads</code>
-              <button class="button button-outline" type="button" id="copy-brief-reference">Copy reference</button>
-              <p id="reference-feedback" role="status" aria-live="polite"></p>
+        <!-- 1. What you need: videos, length, b-roll clips -->
+        <section class="wizard-card" data-step="videos" aria-labelledby="q-videos" hidden>
+          <span class="kicker">ORDER <span>/ UGC</span></span>
+          <h2 class="wizard-question" id="q-videos" tabindex="-1">What do you need?</h2>
+          <p class="wizard-sub">Add videos, b-roll clips, or both. Set either one to 0 if you don't need it.</p>
+          <div class="wizard-field">
+            <span class="wizard-label" id="qty-label">Number of videos</span>
+            <div class="wizard-stepper" role="group" aria-labelledby="qty-label">
+              <button type="button" class="wizard-stepper-btn" data-qty-step="-1" aria-label="One fewer video">−</button>
+              <input id="field-quantity" name="quantity" type="number" inputmode="numeric" min="0" max="100" step="1" value="1" aria-labelledby="qty-label" aria-describedby="qty-help">
+              <button type="button" class="wizard-stepper-btn" data-qty-step="1" aria-label="One more video">+</button>
             </div>
-            <p>Your order reference is prefilled in Google Forms when possible. Keep the same reference when you pay in Stripe. Google Forms privately collects your name, email, brand, reference, selection details, and creative directions. Never include passwords or payment card details in your brief.</p>
-            <a class="button button-accent is-disabled" id="open-brief-form" data-form-required="true" target="_blank" rel="noopener noreferrer" aria-disabled="true" tabindex="-1">Open Google Forms <span aria-hidden="true">↗</span></a>
-            <p class="order-pending" id="checkout-pending" data-form-required="true" hidden>Brief form unavailable. Refresh this page to continue.</p>
+            <p class="wizard-help" id="qty-help">0 to 100 videos.</p>
+          </div>
+          <fieldset class="wizard-field" id="length-field">
+            <legend class="wizard-label">Length of each video</legend>
+            <div class="wizard-chips" id="length-options">
+              <label class="wizard-chip"><input type="radio" name="length" value="15" checked><span><strong>15s</strong><small>$80</small><small class="wizard-chip-raw">raw $64</small></span></label>
+              <label class="wizard-chip"><input type="radio" name="length" value="30"><span><strong>30s</strong><small>$100</small><small class="wizard-chip-raw">raw $80</small></span></label>
+              <label class="wizard-chip"><input type="radio" name="length" value="45"><span><strong>45s</strong><small>$100</small><small class="wizard-chip-raw">raw $80</small></span></label>
+              <label class="wizard-chip"><input type="radio" name="length" value="60"><span><strong>60s</strong><small>$120</small><small class="wizard-chip-raw">raw $96</small></span></label>
+              <label class="wizard-chip"><input type="radio" name="length" value="90"><span><strong>90s</strong><small>$150</small><small class="wizard-chip-raw">raw $120</small></span></label>
+              <label class="wizard-chip"><input type="radio" name="length" value="120"><span><strong>120s</strong><small>$160</small><small class="wizard-chip-raw">raw $128</small></span></label>
+            </div>
+            <p class="wizard-help">Price per video. Full-service first, raw footage (20% less) second. You'll pick on the next step.</p>
+          </fieldset>
+          <div class="wizard-field">
+            <span class="wizard-label" id="clips-label">Number of b-roll clips</span>
+            <div class="wizard-stepper" role="group" aria-labelledby="clips-label">
+              <button type="button" class="wizard-stepper-btn" data-clips-step="-1" aria-label="One fewer b-roll clip">−</button>
+              <input id="field-clips" name="clips" type="number" inputmode="numeric" min="0" max="200" step="1" value="0" aria-labelledby="clips-label" aria-describedby="clips-help">
+              <button type="button" class="wizard-stepper-btn" data-clips-step="1" aria-label="One more b-roll clip">+</button>
+            </div>
+            <p class="wizard-help" id="clips-help">Short supporting clips of the product in use. $7 per clip, 0 to 200 clips.</p>
+          </div>
+          <p class="wizard-estimate" id="estimate-videos" aria-live="polite"></p>
+          <p class="wizard-error" id="error-videos" role="alert"></p>
+        </section>
 
-            <h2>3. Pay and match the order</h2>
-            <label class="order-brief-confirm"><input type="checkbox" id="brief-submitted"> <span>I have submitted my brief in Google Forms.</span></label>
-            <p>Continue to Stripe hosted checkout. Required fields include full name, brand or product name, and Brief order reference. Paste the same reference. For custom orders, set quantity 1-100 to match your choice. Stripe verifies your payment. Alex matches it with your Google Form using the reference.</p>
-            <a class="button button-accent order-checkout-btn is-disabled" id="custom-checkout" data-form-required="true" target="_blank" rel="noopener noreferrer" aria-disabled="true" hidden>Continue to secure payment <span aria-hidden="true">↗</span></a>
-            <p class="order-brief-tip">Changing your selection creates a new reference. Submit an updated brief before paying. This site does not collect card details or store your script.</p>
-          </section>
+        <!-- 2. Full-service or raw (only when videos > 0) -->
+        <section class="wizard-card" data-step="type" aria-labelledby="q-type" hidden>
+          <h2 class="wizard-question" id="q-type" tabindex="-1">Full-service videos or raw footage?</h2>
+          <fieldset class="wizard-field">
+            <legend class="sr-only">Type of video</legend>
+            <div class="wizard-options">
+              <label class="wizard-option"><input type="radio" name="type" value="full"><span><strong>Full-service</strong><small>B-roll and editing included. Captioned and ready to post. <b id="type-price-full"></b></small></span></label>
+              <label class="wizard-option"><input type="radio" name="type" value="raw"><span><strong>Raw footage</strong><small>Unedited takes for your team to cut, 20% less. <b id="type-price-raw"></b></small></span></label>
+            </div>
+          </fieldset>
+          <p class="wizard-error" id="error-type" role="alert"></p>
+        </section>
+
+        <!-- 3. Script -->
+        <section class="wizard-card" data-step="script" aria-labelledby="q-script" hidden>
+          <h2 class="wizard-question" id="q-script" tabindex="-1">Share your script</h2>
+          <p class="wizard-sub">Upload a file, paste a link, paste the script below, or any mix. No script yet? Leave this blank and add your ideas in a later step.</p>
+          <div class="wizard-field">
+            <label class="wizard-label" for="field-script-file">Upload a script (.txt or .md)</label>
+            <input class="wizard-file" id="field-script-file" type="file" accept=".txt,.md,.markdown,text/plain,text/markdown" aria-describedby="file-help">
+            <p class="wizard-help" id="file-help">Text files are added to the script box below. For PDF, Word, or Google Docs, paste a share link instead.</p>
+            <p class="wizard-note" id="file-status" role="status" aria-live="polite"></p>
+          </div>
+          <div class="wizard-field">
+            <label class="wizard-label" for="field-script-link">Link to your script <span>(optional)</span></label>
+            <input class="wizard-input" id="field-script-link" name="scriptLink" type="url" inputmode="url" placeholder="https://docs.google.com/..." maxlength="300" aria-describedby="error-script-link">
+            <p class="wizard-error" id="error-script-link" role="alert"></p>
+          </div>
+          <div class="wizard-field">
+            <label class="wizard-label" for="field-script-text">Paste your script <span>(optional)</span></label>
+            <textarea class="wizard-input wizard-textarea" id="field-script-text" name="scriptText" rows="7" maxlength="5000" aria-describedby="script-count"></textarea>
+            <p class="wizard-count" id="script-count" aria-live="polite">0 / 5,000 characters</p>
+          </div>
+        </section>
+
+        <!-- 4. Physical product -->
+        <section class="wizard-card" data-step="physical" aria-labelledby="q-physical" hidden>
+          <h2 class="wizard-question" id="q-physical" tabindex="-1">Is this a physical product that should be shipped to me?</h2>
+          <fieldset class="wizard-field">
+            <legend class="sr-only">Physical product</legend>
+            <div class="wizard-options wizard-options-row">
+              <label class="wizard-option"><input type="radio" name="physical" value="yes"><span><strong>Yes</strong></span></label>
+              <label class="wizard-option"><input type="radio" name="physical" value="no"><span><strong>No</strong></span></label>
+            </div>
+          </fieldset>
+          <p class="wizard-callout" id="shipping-note" role="status" hidden>Great. Alex will send you his current shipping address by email after you order.</p>
+          <p class="wizard-error" id="error-physical" role="alert"></p>
+        </section>
+
+        <!-- 5. Details -->
+        <section class="wizard-card" data-step="details" aria-labelledby="q-details" hidden>
+          <h2 class="wizard-question" id="q-details" tabindex="-1">Any additional details?</h2>
+          <p class="wizard-sub">Optional. Add reference clips, anything that needs clarifying, or how to access the product (app login steps, download links, promo codes).</p>
+          <div class="wizard-field">
+            <label class="wizard-label" for="field-details">Details <span>(optional)</span></label>
+            <textarea class="wizard-input wizard-textarea" id="field-details" name="details" rows="6" maxlength="2000" aria-describedby="details-count"></textarea>
+            <p class="wizard-count" id="details-count" aria-live="polite">0 / 2,000 characters</p>
+          </div>
+          <div class="wizard-field">
+            <label class="wizard-label" for="field-detail-links">Reference clips or product links <span>(optional)</span></label>
+            <textarea class="wizard-input wizard-textarea wizard-textarea-short" id="field-detail-links" name="detailLinks" rows="2" maxlength="1000" placeholder="One link per line"></textarea>
+          </div>
+          <p class="wizard-help">Please do not include passwords. Alex will ask for any account access by email.</p>
+        </section>
+
+        <!-- 6. Email -->
+        <section class="wizard-card" data-step="email" aria-labelledby="q-email" hidden>
+          <h2 class="wizard-question" id="q-email" tabindex="-1">Provide the email you'd like to communicate with for this order.</h2>
+          <div class="wizard-field">
+            <label class="wizard-label" for="field-email">Email address</label>
+            <input class="wizard-input" id="field-email" name="email" type="email" autocomplete="email" inputmode="email" maxlength="254" required placeholder="you@yourbrand.com" aria-describedby="error-email">
+            <p class="wizard-error" id="error-email" role="alert"></p>
+          </div>
+        </section>
+
+        <!-- 7. Review -->
+        <section class="wizard-card" data-step="review" aria-labelledby="q-review" hidden>
+          <h2 class="wizard-question" id="q-review" tabindex="-1">Review your order</h2>
+          <dl class="wizard-review" id="review-list"></dl>
+          <div class="wizard-total"><span>Total</span><strong id="review-total">$0</strong></div>
+          <div class="wizard-callout wizard-stripe-steps" id="stripe-steps">
+            <p><strong>One step on Stripe's page:</strong> set each quantity to match your order, then check the total.</p>
+            <ul id="stripe-qty-list"></ul>
+            <p>Stripe's total should read <strong id="stripe-expected-total">$0</strong>.</p>
+          </div>
+          <p class="wizard-help">Your script and details are saved with order reference <strong id="review-ref"></strong> when you continue, so Alex has everything in one place. You'll pay on Stripe's secure checkout page.</p>
+          <p class="wizard-error" id="error-checkout" role="alert"></p>
+        </section>
+
+        <div class="wizard-nav">
+          <button type="button" class="button button-outline wizard-back" id="wizard-back">← Back</button>
+          <button type="submit" class="button button-order-ugc wizard-next" id="wizard-next">Next <span aria-hidden="true">→</span></button>
         </div>
-      </aside>
-
-      <div class="order-content" id="order-builder">
-        <section class="order-packages" aria-labelledby="packages-heading">
-          <div class="order-section-head">
-            <span class="kicker">01 <span>/ STEP 1</span></span>
-            <h2 id="packages-heading">1. Choose your videos</h2>
-            <p>Pick a ready-made package, or build a custom length and quantity below. Every order continues with the same Google Forms brief, then Stripe payment.</p>
-          </div>
-          <div class="order-package-grid">
-            <article class="order-package-card" data-package="starter">
-              <span class="order-package-number">01</span>
-              <h3>The Starter</h3>
-              <p class="order-package-desc">A single story, done right.</p>
-              <div class="order-package-price"><span>$</span>90</div>
-              <span class="order-package-deliverable">1 custom UGC video</span>
-              <ul>
-                <li>Creative concept and video</li>
-                <li>Vertical 9:16 format</li>
-                <li>Captions and licensed music</li>
-                <li>One revision round</li>
-                <li>Organic social usage</li>
-              </ul>
-              <button class="button button-outline" type="button" data-select-package="starter" aria-pressed="false">Select The Starter <span aria-hidden="true">↗</span></button>
-            </article>
-
-            <article class="order-package-card is-featured" data-package="growth">
-              <span class="order-popular">MOST POPULAR</span>
-              <span class="order-package-number">02</span>
-              <h3>The Growth</h3>
-              <p class="order-package-desc">More stories. More ways to connect.</p>
-              <div class="order-package-price"><span>$</span>250</div>
-              <span class="order-package-deliverable">3 custom UGC videos</span>
-              <ul>
-                <li>Creative concepts and videos</li>
-                <li>Vertical 9:16 formats</li>
-                <li>Captions and licensed music</li>
-                <li>One revision round per video</li>
-                <li>Organic social usage</li>
-              </ul>
-              <button class="button button-accent" type="button" data-select-package="growth" aria-pressed="false">Select The Growth <span aria-hidden="true">↗</span></button>
-            </article>
-
-            <article class="order-package-card" data-package="scale">
-              <span class="order-package-number">03</span>
-              <h3>The Scale</h3>
-              <p class="order-package-desc">A ready-to-share content collection.</p>
-              <div class="order-package-price"><span>$</span>420</div>
-              <span class="order-package-deliverable">5 custom UGC videos</span>
-              <ul>
-                <li>Creative concepts and videos</li>
-                <li>Vertical 9:16 formats</li>
-                <li>Captions and licensed music</li>
-                <li>One revision round per video</li>
-                <li>Organic social usage</li>
-              </ul>
-              <button class="button button-outline" type="button" data-select-package="scale" aria-pressed="false">Select The Scale <span aria-hidden="true">↗</span></button>
-            </article>
-          </div>
-        </section>
-
-        <section class="order-builder" id="custom-builder" aria-labelledby="builder-heading">
-          <div class="order-section-head">
-            <span class="kicker">02 <span>/ CUSTOM LENGTH</span></span>
-            <h2 id="builder-heading">Need a different length or count?</h2>
-            <p>Pick a length and quantity for an estimate. Your selected length determines the per-video price, multiplied by the number of videos. Set your final quantity (1-100) in Stripe before paying.</p>
-          </div>
-
-          <div class="order-builder-panel">
-            <fieldset class="order-duration-field">
-              <legend>Video length</legend>
-              <div class="order-duration-grid" role="group" aria-label="Choose video length">
-                <button type="button" class="order-duration is-selected" data-duration="15" aria-pressed="true"><span class="order-duration-label">15 seconds</span><span class="order-duration-price">$80 per video</span></button>
-                <button type="button" class="order-duration" data-duration="30" aria-pressed="false"><span class="order-duration-label">30 seconds</span><span class="order-duration-price">$100 per video</span></button>
-                <button type="button" class="order-duration" data-duration="45" aria-pressed="false"><span class="order-duration-label">45 seconds</span><span class="order-duration-price">$100 per video</span></button>
-                <button type="button" class="order-duration" data-duration="60" aria-pressed="false"><span class="order-duration-label">60 seconds</span><span class="order-duration-price">$120 per video</span></button>
-                <button type="button" class="order-duration" data-duration="90" aria-pressed="false"><span class="order-duration-label">90 seconds</span><span class="order-duration-price">$150 per video</span></button>
-                <button type="button" class="order-duration" data-duration="120" aria-pressed="false"><span class="order-duration-label">120 seconds</span><span class="order-duration-price">$160 per video</span></button>
-              </div>
-            </fieldset>
-
-            <div class="order-qty-field">
-              <label for="order-qty">How many videos?</label>
-              <div class="order-qty-controls">
-                <button type="button" id="qty-minus" class="order-qty-btn" aria-label="Decrease quantity">-</button>
-                <input id="order-qty" name="quantity" type="number" min="1" max="100" value="1" inputmode="numeric">
-                <button type="button" id="qty-plus" class="order-qty-btn" aria-label="Increase quantity">+</button>
-              </div>
-              <p class="order-qty-help">Estimate quantity: <strong id="order-qty-display">1</strong> (1 to 100). Set this quantity again in Stripe before paying.</p>
-            </div>
-
-            <div class="order-builder-pricing">
-              <div>
-                <span class="order-builder-pricing-label">Pricing</span>
-                <p>Selected length’s price × quantity. No quantity-based price changes.</p>
-              </div>
-              <button type="button" class="text-link" id="choose-custom">Use this custom estimate <span aria-hidden="true">↗</span></button>
-            </div>
-          </div>
-        </section>
-
-        <section class="order-faq" aria-labelledby="order-faq-heading">
-          <div class="order-section-head">
-            <span class="kicker">03 <span>/ PRICING FAQ</span></span>
-            <h2 id="order-faq-heading">UGC creator pricing questions</h2>
-          </div>
-          <div class="faq-list">
-            <details open>
-              <summary>How much does a UGC video cost?<span aria-hidden="true">+</span></summary>
-              <p>Custom videos are priced by length and quantity. Current per-video rates are $80 for 15s, $100 for 30s or 45s, $120 for 60s, $150 for 90s, and $160 for 120s. Multiply the selected length price by the number of videos (1-100). Fixed packages are $90 for 1 video, $250 for 3, and $420 for 5.</p>
-            </details>
-            <details>
-              <summary>What do the packages include?<span aria-hidden="true">+</span></summary>
-              <p>Each package lists vertical 9:16 video, captions and licensed music, one revision round, and organic social usage. Paid-ad usage and other add-ons are scoped separately in writing.</p>
-            </details>
-            <details>
-              <summary>How does ordering work?<span aria-hidden="true">+</span></summary>
-              <p>Select a package or custom length, open Google Forms with your order reference, submit the brief, then continue to Stripe hosted payment and paste the same reference.</p>
-            </details>
-          </div>
-        </section>
-      </div>
+      </form>
+      <p class="wizard-restart"><button type="button" class="text-link" id="wizard-restart">Start over</button></p>
     </div>
-    <div class="sticky-cta-space" aria-hidden="true"></div>
   </main>
-
 
   <section class="platform-order shell" aria-labelledby="platform-order-title">
     <div class="platform-order-card">
       <h2 id="platform-order-title">Prefer to order through Fiverr or Upwork?</h2>
-      <p>These profile links are separate from the Stripe reference flow above. Availability and project details are handled on each platform.</p>
+      <p>These profile links are separate from the order steps above. Availability and project details are handled on each platform.</p>
       <div class="platform-order-actions">
         <a class="button button-fiverr" href="https://www.fiverr.com/s/lrvbkwe" target="_blank" rel="noopener noreferrer">Order UGC on Fiverr <span aria-hidden="true">↗</span></a>
         <a class="button button-upwork" href="https://www.upwork.com/freelancers/~016b02dd1d6d55d058?mp_source=share" target="_blank" rel="noopener noreferrer">Order UGC on Upwork <span aria-hidden="true">↗</span></a>
@@ -242,7 +214,5 @@
     </div>
     <span class="copyright">© <span id="year">2026</span> Alex Miller</span>
   </footer>
-  <a class="order-sticky-cta button button-order-ugc" href="#order-builder">Order UGC Now <span aria-hidden="true">↗</span></a>
-  <a class="mobile-cta button button-order-ugc" href="#order-builder">Order UGC Now <span aria-hidden="true">↗</span></a>
 </body>
 </html>

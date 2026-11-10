@@ -4,7 +4,7 @@
 // GA4 Measurement ID from /workspace/ugc-analytics.json (property Alex UGC Pro).
 const measurementId = 'G-7Y59SW5F2S';
 
-const ALLOWED_HOSTS = new Set(['buy.stripe.com', 'www.fiverr.com', 'fiverr.com', 'www.upwork.com', 'upwork.com', 'docs.google.com', 'forms.gle']);
+const ALLOWED_HOSTS = new Set(['buy.stripe.com', 'checkout.stripe.com', 'www.fiverr.com', 'fiverr.com', 'www.upwork.com', 'upwork.com']);
 
 function enabled() {
   return typeof measurementId === 'string' && /^G-[A-Z0-9]+$/i.test(measurementId.trim());
@@ -34,8 +34,9 @@ function track(eventName, params) {
   if (params && typeof params === 'object') {
     for (const [key, value] of Object.entries(params)) {
       if (value == null) continue;
-      // Never send order references, names, emails, scripts, or free-text briefs.
-      if (/ref|name|email|script|brief|phone|address/i.test(key)) continue;
+      // Never send order references, names, emails, scripts, links, or free-text briefs.
+      if (/ref|name|email|script|brief|phone|address|detail|link|text|url/i.test(key)) continue;
+      if (typeof value === 'string' && (value.length > 40 || /@|https?:/i.test(value))) continue;
       if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
         safe[key] = value;
       }
@@ -48,10 +49,9 @@ function linkKind(anchor) {
   try {
     const url = new URL(anchor.href, window.location.href);
     if (!ALLOWED_HOSTS.has(url.hostname)) return null;
-    if (url.hostname === 'buy.stripe.com') return 'stripe';
+    if (url.hostname === 'buy.stripe.com' || url.hostname === 'checkout.stripe.com') return 'stripe';
     if (url.hostname.includes('fiverr')) return 'fiverr';
     if (url.hostname.includes('upwork')) return 'upwork';
-    if (url.hostname === 'docs.google.com' || url.hostname === 'forms.gle') return 'google_forms';
   } catch (_) { /* ignore */ }
   return null;
 }
@@ -62,10 +62,6 @@ function bindClicks() {
     if (!anchor || anchor.getAttribute('aria-disabled') === 'true') return;
     const kind = linkKind(anchor);
     if (!kind) return;
-    if (kind === 'google_forms' || anchor.id === 'open-brief-form') {
-      track('open_creative_brief', { link_host: 'docs.google.com' });
-      return;
-    }
     if (kind === 'stripe') {
       track('begin_checkout', { checkout_provider: 'stripe' });
       return;
@@ -75,6 +71,9 @@ function bindClicks() {
     }
   }, true);
 }
+
+// Exposed for the order wizard: step and checkout events only, filtered above.
+window.ugcTrack = track;
 
 loadGtag();
 bindClicks();

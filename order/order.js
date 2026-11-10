@@ -1,528 +1,480 @@
 (() => {
 'use strict';
 
-/**
- * Static order page: Google Forms brief + Stripe Payment Links.
- * Static page only: no server, no .env, and no Stripe or Google API keys in this site.
- * Prefill uses only non-sensitive values: order reference, order type, video length, and count.
+/*
+ * One-question-at-a-time UGC order wizard.
+ * Answers live only in this tab's sessionStorage until checkout. At checkout the
+ * brief is POSTed to Alex's Google Form (in the request body, never a URL) with an
+ * order reference, then the buyer goes to the matching Stripe Payment Link with
+ * that reference as client_reference_id. Nothing from the brief is put in URLs,
+ * analytics, or console logs.
  */
 
-// Custom unit prices in USD; quantity never changes the per-video rate.
-const DURATION_PRICES = { 15: 80, 30: 100, 45: 100, 60: 120, 90: 150, 120: 160 };
-
-// One Stripe Payment Link per duration, with adjustable quantity from 1 to 100.
-const CUSTOM_CHECKOUT_LINKS = {
-  15: 'https://buy.stripe.com/9B6cMX1S3eKQfQS6Ts2Nq0R',
-  30: 'https://buy.stripe.com/6oU00bcwH3285cegu22Nq0W',
-  45: 'https://buy.stripe.com/7sY6oz2W79qw0VYdhQ2Nq0S',
-  60: 'https://buy.stripe.com/bJe5kv9kvgSY5ceb9I2Nq0T',
-  90: 'https://buy.stripe.com/7sYdR140bcCI0VYgu22Nq0V',
-  120: 'https://buy.stripe.com/dRm3cnaozauAdIKgu22Nq0U'
-};
-
-const PACKAGES = {
-  starter: { name: 'The Starter', videos: 1, price: 90, url: 'https://buy.stripe.com/5kQ8wHfIT46ceMOgu22Nq0t' },
-  growth:  { name: 'The Growth',  videos: 3, price: 250, url: 'https://buy.stripe.com/28E4grdAL3285ce6Ts2Nq0u' },
-  scale:   { name: 'The Scale',   videos: 5, price: 420, url: 'https://buy.stripe.com/bJe4graoz8ms48a6Ts2Nq0v' }
-};
-
-// Public Google Form view URL with verified non-sensitive prefill entry ids.
-// Never prefill name, email, brand, script, or shared links.
-const google = {
-  formBaseUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSei67lcSfxrYHIJpJu3xVFBtnc1INO2vJ2ySxGfWfLOYCd5Hw/viewform',
-  entries: {
-    reference: 'entry.2069755540',
-    orderType: 'entry.2147031447',
-    selection: 'entry.1383629738',
-    videos: 'entry.698467984'
-  }
-};
-
-const FORM_ORDER_TYPE = {
-  custom: 'Custom length and quantity',
-  starter: 'The Starter: 1 video, $90',
-  growth: 'The Growth: 3 videos, $250',
-  scale: 'The Scale: 5 videos, $420'
-};
-
-const DURATIONS = Object.keys(DURATION_PRICES).map(Number);
-const SESSION_KEY = 'ugc-order-session';
-const REF_PATTERN = /^UGC-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
+const P = window.UGCPricing;
+const B = window.UGCBrief;
+const STORE_KEY = 'ugc-order-wizard-v2';
+const FORM_TIMEOUT_MS = 4000;
 const $ = (q, ctx = document) => ctx.querySelector(q);
 const $$ = (q, ctx = document) => [...ctx.querySelectorAll(q)];
+const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const track = (name, params) => { try { if (typeof window.ugcTrack === 'function') window.ugcTrack(name, params); } catch (_) { /* ignore */ } };
 
-const state = {
-  mode: 'custom', // 'package' | 'custom'
-  packageId: null,
-  duration: 15,
-  quantity: 1
+const DEFAULTS = {
+  step: 'videos',
+  quantity: 1,
+  length: 15,
+  type: '',
+  clips: 0,
+  ref: '',
+  scriptText: '',
+  scriptLink: '',
+  scriptFileName: '',
+  physical: '',
+  details: '',
+  detailLinks: '',
+  email: ''
 };
+const state = { ...DEFAULTS };
+let busy = false;
 
-let activeReference = '';
-let activeSelectionKey = '';
-
-function isPlaceholder(url) {
-  return !url || /pending/i.test(url);
+function steps() {
+  const list = ['videos'];
+  if (state.quantity > 0) list.push('type');
+  list.push('script', 'physical', 'details', 'email', 'review');
+  return list;
 }
 
-function unitPrice() {
-  return DURATION_PRICES[state.duration];
+function clampInt(value, min, max, fallback) {
+  const n = Math.floor(Number(value));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
 }
 
-function totalPrice(qty) {
-  return unitPrice() * qty;
+// ---------- persistence ----------
+function save() {
+  try { sessionStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (_) { /* private mode */ }
 }
-
-function formatMoney(n) {
-  return `$${n.toLocaleString('en-US')}`;
-}
-
-function linkForCustom() {
-  return CUSTOM_CHECKOUT_LINKS[state.duration] || null;
-}
-
-function paymentLink() {
-  if (state.mode === 'package' && state.packageId && PACKAGES[state.packageId]) {
-    return PACKAGES[state.packageId].url;
-  }
-  return linkForCustom();
-}
-
-function formConfigured() {
-  const base = String(google.formBaseUrl || '').trim();
-  if (!base) return false;
+function load() {
   try {
-    const url = new URL(base);
-    const pathOk = url.hostname === 'docs.google.com'
-      ? /\/forms\/d\/e\/[A-Za-z0-9_-]+\/viewform\/?$/.test(url.pathname)
-      : url.hostname === 'forms.gle';
-    return url.protocol === 'https:'
-      && pathOk
-      && !url.searchParams.has('usp')
-      && !url.username
-      && !url.password;
-  } catch (_) {
-    return false;
-  }
-}
-
-function selectionForForm() {
-  if (state.mode === 'package' && state.packageId && FORM_ORDER_TYPE[state.packageId]) {
-    return FORM_ORDER_TYPE[state.packageId];
-  }
-  return FORM_ORDER_TYPE.custom;
-}
-
-function lengthForForm() {
-  if (state.mode === 'package' && state.packageId && PACKAGES[state.packageId]) {
-    return 'Fixed package';
-  }
-  const price = DURATION_PRICES[state.duration];
-  return `${state.duration} seconds: $${price} per video`;
-}
-
-function videosForForm() {
-  if (state.mode === 'package' && state.packageId && PACKAGES[state.packageId]) {
-    return String(PACKAGES[state.packageId].videos);
-  }
-  return String(state.quantity);
-}
-
-function createReference() {
-  const cryptoObj = (typeof window !== 'undefined' && window.crypto) || (typeof crypto !== 'undefined' ? crypto : null);
-  if (cryptoObj && typeof cryptoObj.randomUUID === 'function') {
-    return 'UGC-' + cryptoObj.randomUUID();
-  }
-  const bytes = new Uint8Array(16);
-  if (cryptoObj && typeof cryptoObj.getRandomValues === 'function') {
-    cryptoObj.getRandomValues(bytes);
-  } else {
-    for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
-  }
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
-  return `UGC-${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
-
-function selectionDetails() {
-  if (state.mode === 'package' && state.packageId && PACKAGES[state.packageId]) {
-    const pkg = PACKAGES[state.packageId];
-    return {
-      orderType: 'package',
-      package: state.packageId,
-      selection: `${pkg.name} · ${pkg.videos} video${pkg.videos === 1 ? '' : 's'}`,
-      videos: String(pkg.videos),
-      total: String(pkg.price)
-    };
-  }
-  return {
-    orderType: 'custom',
-    duration: String(state.duration),
-    selection: `${state.duration}s · ${state.quantity} video${state.quantity === 1 ? '' : 's'}`,
-    videos: String(state.quantity),
-    total: String(totalPrice(state.quantity))
-  };
-}
-
-function selectionKey() {
-  return JSON.stringify(selectionDetails());
-}
-
-function readSession() {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
+    const raw = sessionStorage.getItem(STORE_KEY);
     if (!raw) return;
-    const data = JSON.parse(raw);
-    if (data.mode === 'package' && PACKAGES[data.packageId]) {
-      state.mode = 'package';
-      state.packageId = data.packageId;
-    } else if (data.mode === 'custom') {
-      state.mode = 'custom';
-      state.packageId = null;
-    }
-    if (DURATIONS.includes(data.duration)) state.duration = data.duration;
-    if (Number.isFinite(data.quantity) && data.quantity >= 1 && data.quantity <= 100) {
-      state.quantity = Math.floor(data.quantity);
-    }
-    if (typeof data.reference === 'string' && REF_PATTERN.test(data.reference) && data.selectionKey === selectionKey()) {
-      activeReference = data.reference;
-      activeSelectionKey = data.selectionKey;
-    }
-  } catch (_) { /* private browsing or corrupt session */ }
+    const d = JSON.parse(raw);
+    const L = P.LIMITS;
+    state.quantity = clampInt(d.quantity, L.minQty, L.maxQty, DEFAULTS.quantity);
+    state.length = P.LENGTHS.includes(Number(d.length)) ? Number(d.length) : DEFAULTS.length;
+    state.type = P.TYPES[d.type] ? d.type : '';
+    state.ref = typeof d.ref === 'string' && P.REF_RE.test(d.ref) ? d.ref : '';
+    state.clips = clampInt(d.clips, L.minClips, L.maxClips, DEFAULTS.clips);
+    state.scriptText = typeof d.scriptText === 'string' ? d.scriptText.slice(0, L.script) : '';
+    state.scriptLink = typeof d.scriptLink === 'string' ? d.scriptLink.slice(0, L.scriptLink) : '';
+    state.scriptFileName = typeof d.scriptFileName === 'string' ? d.scriptFileName.slice(0, L.fileName) : '';
+    state.physical = d.physical === 'yes' || d.physical === 'no' ? d.physical : '';
+    state.details = typeof d.details === 'string' ? d.details.slice(0, L.details) : '';
+    state.detailLinks = typeof d.detailLinks === 'string' ? d.detailLinks.slice(0, L.detailLinks) : '';
+    state.email = typeof d.email === 'string' ? d.email.slice(0, L.email) : '';
+    state.step = steps().includes(d.step) ? d.step : 'videos';
+  } catch (_) { /* corrupt or unavailable */ }
+}
+function clearSaved() {
+  try { sessionStorage.removeItem(STORE_KEY); } catch (_) { /* ignore */ }
 }
 
-function writeSession() {
-  try {
-    if (typeof window !== 'undefined' && window.location && window.history) {
-      const params = new URLSearchParams();
-      if (state.mode === 'package' && state.packageId) {
-        params.set('mode', 'package');
-        params.set('package', state.packageId);
-      } else {
-        params.set('mode', 'custom');
-        params.set('duration', String(state.duration));
-        params.set('qty', String(state.quantity));
-      }
-      const next = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
-      window.history.replaceState(null, '', next);
-    }
-  } catch (_) { /* non-browser or restricted history */ }
-
-  try {
-    if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-        mode: state.mode,
-        packageId: state.packageId,
-        duration: state.duration,
-        quantity: state.quantity,
-        reference: activeReference,
-        selectionKey: activeSelectionKey
-      }));
-    }
-  } catch (_) { /* private browsing */ }
+// ---------- state -> form ----------
+function fillForm() {
+  $('#field-quantity').value = String(state.quantity);
+  $$('input[name="length"]').forEach(r => { r.checked = Number(r.value) === state.length; });
+  $$('input[name="type"]').forEach(r => { r.checked = r.value === state.type; });
+  $('#field-clips').value = String(state.clips);
+  $('#field-script-text').value = state.scriptText;
+  $('#field-script-link').value = state.scriptLink;
+  $$('input[name="physical"]').forEach(r => { r.checked = r.value === state.physical; });
+  $('#field-details').value = state.details;
+  $('#field-detail-links').value = state.detailLinks;
+  $('#field-email').value = state.email;
+  if (state.scriptFileName) $('#file-status').textContent = `Added from ${state.scriptFileName}.`;
 }
 
-function readQuery() {
-  const params = new URLSearchParams(window.location.search);
-  const mode = params.get('mode');
-  const pkg = params.get('package');
-  const duration = Number(params.get('duration'));
-  const quantity = Number(params.get('qty'));
+function currentQuote() {
+  return P.quote({ type: state.type, length: state.length, quantity: state.quantity, clips: state.clips });
+}
 
-  if (mode === 'package' && pkg && PACKAGES[pkg]) {
-    state.mode = 'package';
-    state.packageId = pkg;
-  } else if (mode === 'custom' || duration || quantity) {
-    state.mode = 'custom';
-    state.packageId = null;
+function estimateText() {
+  const parts = [];
+  if (state.quantity > 0) {
+    const full = P.FULL_PRICES[state.length] * state.quantity;
+    const raw = P.RAW_PRICES[state.length] * state.quantity;
+    const t = P.TYPES[state.type];
+    const videoTotal = t ? t.prices[state.length] * state.quantity : null;
+    parts.push(`${state.quantity} × ${state.length}s video${state.quantity === 1 ? '' : 's'} = ${videoTotal !== null ? P.money(videoTotal) + ` (${t.label.toLowerCase()})` : `${P.money(full)} full-service or ${P.money(raw)} raw`}`);
   }
-  if (DURATIONS.includes(duration)) state.duration = duration;
-  if (Number.isFinite(quantity) && quantity >= 1 && quantity <= 100) {
-    state.quantity = Math.floor(quantity);
+  if (state.clips > 0) parts.push(`${state.clips} b-roll clip${state.clips === 1 ? '' : 's'} × ${P.money(P.BROLL_CLIP_PRICE)} = ${P.money(state.clips * P.BROLL_CLIP_PRICE)}`);
+  return parts.join(' · ');
+}
+
+function updateLive() {
+  $('#estimate-videos').textContent = estimateText();
+  const lengthField = $('#length-field');
+  lengthField.hidden = state.quantity === 0;
+  lengthField.disabled = state.quantity === 0;
+  $('#type-price-full').textContent = `${P.money(P.FULL_PRICES[state.length])} per ${state.length}s video.`;
+  $('#type-price-raw').textContent = `${P.money(P.RAW_PRICES[state.length])} per ${state.length}s video.`;
+  const len = state.scriptText.length;
+  const sc = $('#script-count');
+  sc.textContent = `${len.toLocaleString('en-US')} / ${P.LIMITS.script.toLocaleString('en-US')} characters${len >= P.LIMITS.script ? ' (limit reached)' : ''}`;
+  sc.classList.toggle('is-limit', len >= P.LIMITS.script);
+  const dl = state.details.length;
+  $('#details-count').textContent = `${dl.toLocaleString('en-US')} / ${P.LIMITS.details.toLocaleString('en-US')} characters`;
+  $('#shipping-note').hidden = state.physical !== 'yes';
+  $$('[data-qty-step="-1"]').forEach(b => { b.disabled = state.quantity <= P.LIMITS.minQty; });
+  $$('[data-qty-step="1"]').forEach(b => { b.disabled = state.quantity >= P.LIMITS.maxQty; });
+  $$('[data-clips-step="-1"]').forEach(b => { b.disabled = state.clips <= P.LIMITS.minClips; });
+  $$('[data-clips-step="1"]').forEach(b => { b.disabled = state.clips >= P.LIMITS.maxClips; });
+}
+
+// ---------- review ----------
+function addRow(dl, label, value) {
+  const dt = document.createElement('dt');
+  dt.textContent = label;
+  const dd = document.createElement('dd');
+  dd.textContent = value;
+  dl.append(dt, dd);
+}
+function renderReview() {
+  const dl = $('#review-list');
+  dl.textContent = '';
+  const q = currentQuote();
+  const qtyList = $('#stripe-qty-list');
+  qtyList.textContent = '';
+  if (q.ok) {
+    q.lines.forEach(l => {
+      addRow(dl, l.key === 'broll' ? 'B-roll clips' : 'Videos', `${l.quantity} × ${l.label} at ${P.money(l.unitPrice)} = ${P.money(l.subtotal)}`);
+      const li = document.createElement('li');
+      li.textContent = `${l.stripeName}: quantity ${l.quantity}`;
+      qtyList.append(li);
+    });
   }
+  const scriptParts = [];
+  if (state.scriptText.trim()) scriptParts.push(`${state.scriptText.length.toLocaleString('en-US')} characters pasted`);
+  if (state.scriptLink.trim()) scriptParts.push('link added');
+  if (state.scriptFileName) scriptParts.push(`from ${state.scriptFileName}`);
+  addRow(dl, 'Script', scriptParts.length ? scriptParts.join(', ') : 'None yet');
+  addRow(dl, 'Ship a product to Alex', state.physical === 'yes' ? 'Yes' : state.physical === 'no' ? 'No' : 'Not answered');
+  addRow(dl, 'Additional details', state.details.trim() || state.detailLinks.trim() ? 'Added' : 'None');
+  addRow(dl, 'Email', state.email);
+  $('#review-total').textContent = q.ok ? P.money(q.total) : '—';
+  $('#stripe-expected-total').textContent = q.ok ? P.money(q.total) : '—';
+  $('#review-ref').textContent = ensureRef();
 }
 
-function resetBriefConfirmation() {
-  const checkbox = $('#brief-submitted');
-  if (checkbox) checkbox.checked = false;
+// ---------- step rendering ----------
+function stepEl(name) { return $(`.wizard-card[data-step="${name}"]`); }
+
+function renderChrome() {
+  const list = steps();
+  const i = list.indexOf(state.step);
+  const total = list.length;
+  $('#wizard-step-count').textContent = state.step === 'review' ? 'Final step: review' : `Step ${i + 1} of ${total}`;
+  $('#wizard-progress-bar').style.width = `${Math.round(((i + 1) / total) * 100)}%`;
+  $('#wizard-back').hidden = i === 0;
+  const next = $('#wizard-next');
+  if (state.step === 'review') next.innerHTML = 'Checkout securely <span aria-hidden="true">↗</span>';
+  else if (state.step === 'email') next.innerHTML = 'Review order <span aria-hidden="true">→</span>';
+  else next.innerHTML = 'Next <span aria-hidden="true">→</span>';
+  if (state.step === 'review') renderReview();
 }
 
-function ensureReference() {
-  const key = selectionKey();
-  if (key !== activeSelectionKey || !REF_PATTERN.test(activeReference)) {
-    activeSelectionKey = key;
-    activeReference = createReference();
-    resetBriefConfirmation();
-  }
-  return activeReference;
-}
-
-function buildGoogleFormUrl() {
-  if (!formConfigured()) return null;
-  try {
-    const url = new URL(google.formBaseUrl);
-    // Strip tracking params; keep only validated path + our non-sensitive prefills.
-    url.search = '';
-    const values = {
-      reference: activeReference,
-      orderType: selectionForForm(),
-      selection: lengthForForm(),
-      videos: videosForForm()
-    };
-    for (const [name, entryId] of Object.entries(google.entries || {})) {
-      const id = String(entryId || '').trim();
-      if (!/^entry\.\d+$/.test(id)) continue;
-      if (values[name] === undefined || values[name] === '') continue;
-      url.searchParams.set(id, values[name]);
-    }
-    return url.href;
-  } catch (_) {
-    return null;
-  }
-}
-
-function setMode(mode, packageId = null) {
-  resetBriefConfirmation();
-  state.mode = mode;
-  state.packageId = packageId;
-  ensureReference();
-  writeSession();
-  render();
-}
-
-function setDuration(duration) {
-  if (duration !== state.duration || state.mode !== 'custom') resetBriefConfirmation();
-  state.duration = duration;
-  state.mode = 'custom';
-  state.packageId = null;
-  ensureReference();
-  writeSession();
-  render();
-}
-
-function setQuantity(qty) {
-  const next = Math.min(100, Math.max(1, Math.floor(qty) || 1));
-  if (next !== state.quantity || state.mode !== 'custom') resetBriefConfirmation();
-  state.quantity = next;
-  state.mode = 'custom';
-  state.packageId = null;
-  ensureReference();
-  writeSession();
-  render();
-}
-
-function renderPackageCards() {
-  $$('[data-package]').forEach(card => {
-    const id = card.dataset.package;
-    const selected = state.mode === 'package' && state.packageId === id;
-    card.classList.toggle('is-selected', selected);
-    const button = $(`[data-select-package="${id}"]`);
-    if (button) button.setAttribute('aria-pressed', String(selected));
+function showOnly(name) {
+  $$('.wizard-card').forEach(card => {
+    const on = card.dataset.step === name;
+    card.hidden = !on;
+    card.classList.remove('is-entering-forward', 'is-entering-back', 'is-leaving-forward', 'is-leaving-back');
+    if (on) card.removeAttribute('inert'); else card.setAttribute('inert', '');
   });
 }
 
-function renderDuration() {
-  $$('[data-duration]').forEach(btn => {
-    const value = Number(btn.dataset.duration);
-    const price = DURATION_PRICES[value];
-    const label = btn.querySelector('.order-duration-label');
-    const priceEl = btn.querySelector('.order-duration-price');
-    if (label) label.textContent = `${value} seconds`;
-    if (priceEl) priceEl.textContent = `${formatMoney(price)} per video`;
-    if (!label && !priceEl) btn.textContent = `${value}s · ${formatMoney(price)}`;
-    const selected = state.mode === 'custom' && state.duration === value;
-    btn.classList.toggle('is-selected', selected);
-    btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
-  });
+function focusStep(name) {
+  const heading = $(`.wizard-card[data-step="${name}"] .wizard-question`);
+  if (heading) heading.focus({ preventScroll: true });
+  const wizard = $('#order-wizard');
+  const rect = wizard.getBoundingClientRect();
+  if (rect.top < 0 || rect.top > window.innerHeight * 0.4) wizard.scrollIntoView({ block: 'start', behavior: reduceMotion() ? 'auto' : 'smooth' });
 }
 
-function renderQuantity() {
-  const input = $('#order-qty');
-  const display = $('#order-qty-display');
-  if (input) input.value = String(state.quantity);
-  if (display) display.textContent = String(state.quantity);
-  const minus = $('#qty-minus');
-  const plus = $('#qty-plus');
-  if (minus) minus.disabled = state.quantity <= 1;
-  if (plus) plus.disabled = state.quantity >= 100;
-}
+function goTo(name, direction) {
+  const from = state.step;
+  if (from === name) return;
+  state.step = name;
+  save();
+  const out = stepEl(from);
+  const into = stepEl(name);
+  const dir = direction === 'back' ? 'back' : 'forward';
+  track('order_step', { step: name, step_index: steps().indexOf(name) + 1 });
 
-function renderSummary() {
-  const summaryMode = $('#summary-mode');
-  const summaryDetail = $('#summary-detail');
-  const summaryUnit = $('#summary-unit');
-  const summaryTotal = $('#summary-total');
-  const priceLive = $('#price-live');
-  const qtyNote = $('#qty-checkout-note');
-
-  if (state.mode === 'package' && state.packageId && PACKAGES[state.packageId]) {
-    const pkg = PACKAGES[state.packageId];
-    if (summaryMode) summaryMode.textContent = pkg.name;
-    if (summaryDetail) summaryDetail.textContent = `${pkg.videos} video${pkg.videos === 1 ? '' : 's'} · fixed package`;
-    if (summaryUnit) summaryUnit.textContent = formatMoney(pkg.price);
-    if (summaryTotal) summaryTotal.textContent = formatMoney(pkg.price);
-    if (priceLive) {
-      priceLive.textContent = `${pkg.name}: ${formatMoney(pkg.price)} for ${pkg.videos} video${pkg.videos === 1 ? '' : 's'}. Submit your Google Forms brief, then continue to payment.`;
-    }
-    if (qtyNote) {
-      qtyNote.textContent = 'Your selected package price is fixed. Submit your brief before paying, and paste the same order reference in Stripe.';
-    }
+  if (reduceMotion() || !out || !into) {
+    showOnly(name);
+    renderChrome();
+    focusStep(name);
     return;
   }
+  busy = true;
+  out.classList.add(`is-leaving-${dir}`);
+  const finish = () => {
+    if (!busy) return;
+    showOnly(name);
+    renderChrome();
+    into.classList.add(`is-entering-${dir}`);
+    focusStep(name);
+    busy = false;
+  };
+  out.addEventListener('animationend', finish, { once: true });
+  setTimeout(finish, 320); // fallback if animations are disabled
+}
 
-  const qty = state.quantity;
-  const unit = unitPrice();
-  const total = totalPrice(qty);
-
-  if (summaryMode) summaryMode.textContent = 'Custom length builder';
-  if (summaryDetail) summaryDetail.textContent = `${state.duration}s · ${qty} video${qty === 1 ? '' : 's'} · estimate`;
-  if (summaryUnit) summaryUnit.textContent = `${formatMoney(unit)} each`;
-  if (summaryTotal) summaryTotal.textContent = formatMoney(total);
-  if (priceLive) {
-    priceLive.textContent = `Estimate ${formatMoney(total)} for ${qty} × ${state.duration}s video${qty === 1 ? '' : 's'} at ${formatMoney(unit)} each.`;
-  }
-  if (qtyNote) {
-    qtyNote.textContent = `Set your final quantity (1-100) in Stripe at ${formatMoney(unit)} per ${state.duration}s video. Paste the same order reference in Stripe.`;
+// ---------- validation per step ----------
+function setError(id, msg, field) {
+  const el = $(id);
+  if (el) el.textContent = msg || '';
+  if (field) {
+    if (msg) field.setAttribute('aria-invalid', 'true');
+    else field.removeAttribute('aria-invalid');
   }
 }
 
-function setDisabledAnchor(el, disabled, href) {
-  if (!el) return;
-  el.classList.toggle('is-disabled', disabled);
-  el.setAttribute('aria-disabled', String(disabled));
-  if (disabled) {
-    el.removeAttribute('href');
-    el.setAttribute('tabindex', '-1');
-  } else if (href) {
-    el.href = href;
-    el.removeAttribute('tabindex');
-  }
-}
-
-function renderBriefFlow() {
-  ensureReference();
-  writeSession();
-
-  const referenceEl = $('#brief-reference');
-  if (referenceEl) referenceEl.textContent = activeReference;
-
-  const formLink = $('#open-brief-form');
-  const checkout = $('#custom-checkout');
-  const pending = $('#checkout-pending');
-  const formReady = formConfigured();
-  const formUrl = formReady ? buildGoogleFormUrl() : null;
-  const payUrl = paymentLink();
-  const payReady = Boolean(payUrl && !isPlaceholder(payUrl));
-  const confirmed = Boolean($('#brief-submitted')?.checked);
-
-  if (formLink) {
-    formLink.hidden = false;
-    formLink.dataset.formRequired = 'true';
-    if (formReady && formUrl) {
-      setDisabledAnchor(formLink, false, formUrl);
-      formLink.removeAttribute('title');
-    } else {
-      setDisabledAnchor(formLink, true);
-      formLink.title = 'Google Form link will appear here once the public form URL is configured.';
+function validateStep(name) {
+  switch (name) {
+    case 'videos': {
+      state.quantity = clampInt($('#field-quantity').value, P.LIMITS.minQty, P.LIMITS.maxQty, 0);
+      $('#field-quantity').value = String(state.quantity);
+      state.clips = clampInt($('#field-clips').value, P.LIMITS.minClips, P.LIMITS.maxClips, 0);
+      $('#field-clips').value = String(state.clips);
+      if (state.quantity === 0 && state.clips === 0) {
+        setError('#error-videos', 'Add at least one video or one b-roll clip to continue.');
+        $('#field-quantity').focus();
+        return false;
+      }
+      setError('#error-videos', '');
+      updateLive();
+      return true;
     }
-  }
-
-  if (pending) {
-    pending.hidden = formReady;
-    pending.dataset.formRequired = 'true';
-  }
-
-  if (checkout) {
-    checkout.dataset.formRequired = 'true';
-    // Payment stays hidden until the brief confirmation checkbox is checked.
-    const expose = formReady && payReady && confirmed;
-    checkout.hidden = !expose;
-    if (expose) setDisabledAnchor(checkout, false, payUrl);
-    else setDisabledAnchor(checkout, true);
+    case 'type': {
+      if (!P.TYPES[state.type]) { setError('#error-type', 'Choose one option to continue.'); $('input[name="type"]').focus(); return false; }
+      setError('#error-type', '');
+      return true;
+    }
+    case 'script': {
+      const field = $('#field-script-link');
+      const v = field.value.trim();
+      if (v && !P.isHttpUrl(v)) { setError('#error-script-link', 'Enter a full link that starts with https://', field); field.focus(); return false; }
+      setError('#error-script-link', '', field);
+      state.scriptLink = v;
+      return true;
+    }
+    case 'physical': {
+      if (state.physical !== 'yes' && state.physical !== 'no') { setError('#error-physical', 'Choose yes or no to continue.'); $('input[name="physical"]').focus(); return false; }
+      setError('#error-physical', '');
+      return true;
+    }
+    case 'email': {
+      const field = $('#field-email');
+      const v = field.value.trim();
+      if (!P.isEmail(v)) { setError('#error-email', 'Enter a valid email address, like you@yourbrand.com.', field); field.focus(); return false; }
+      setError('#error-email', '', field);
+      state.email = v;
+      return true;
+    }
+    default:
+      return true;
   }
 }
 
-function render() {
-  renderPackageCards();
-  renderDuration();
-  renderQuantity();
-  renderSummary();
-  renderBriefFlow();
-  const builder = $('#custom-builder');
-  if (builder) builder.classList.toggle('is-active', state.mode === 'custom');
+function next() {
+  if (busy) return;
+  if (state.step === 'review') { checkout(); return; }
+  if (!validateStep(state.step)) return;
+  save();
+  const list = steps();
+  const i = list.indexOf(state.step);
+  if (i < list.length - 1) goTo(list[i + 1], 'forward');
 }
 
-async function copyReference() {
-  const feedback = $('#reference-feedback');
-  const text = activeReference;
+function back() {
+  if (busy) return;
+  const list = steps();
+  const i = list.indexOf(state.step);
+  if (i > 0) goTo(list[i - 1], 'back');
+}
+
+// ---------- script file ----------
+async function onFile(event) {
+  const input = event.target;
+  const status = $('#file-status');
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const okType = /\.(txt|md|markdown)$/i.test(file.name) || /^text\//.test(file.type);
+  if (!okType) {
+    status.textContent = 'That file type cannot be read here. Upload it to Google Drive or Dropbox and paste the share link above.';
+    input.value = '';
+    return;
+  }
+  if (file.size > 200 * 1024) {
+    status.textContent = 'That file is too large. Paste a share link instead.';
+    input.value = '';
+    return;
+  }
   try {
-    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-      await navigator.clipboard.writeText(text);
-    } else {
-      const area = document.createElement('textarea');
-      area.value = text;
-      area.setAttribute('readonly', '');
-      area.style.position = 'fixed';
-      area.style.left = '-9999px';
-      document.body.appendChild(area);
-      area.select();
-      document.execCommand('copy');
-      document.body.removeChild(area);
-    }
-    if (feedback) feedback.textContent = 'Order reference copied. Paste it in Google Forms and again in Stripe.';
+    const text = (await file.text()).replace(/\r\n?/g, '\n');
+    const area = $('#field-script-text');
+    const combined = area.value.trim() ? `${area.value}\n\n${text}` : text;
+    const limited = combined.slice(0, P.LIMITS.script);
+    area.value = limited;
+    state.scriptText = limited;
+    state.scriptFileName = file.name.slice(0, P.LIMITS.fileName);
+    status.textContent = combined.length > P.LIMITS.script
+      ? `Added from ${file.name}, trimmed to the 5,000 character limit. Paste a link if your script is longer.`
+      : `Added from ${file.name}. Review it in the box below.`;
+    save();
+    updateLive();
   } catch (_) {
-    if (feedback) feedback.textContent = 'Select and copy the order reference shown above.';
-    const code = $('#brief-reference');
-    if (code && window.getSelection) {
-      const range = document.createRange();
-      range.selectNodeContents(code);
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
+    status.textContent = 'That file could not be read. Paste the script or a link instead.';
   }
+  input.value = '';
 }
 
+// ---------- checkout ----------
+function ensureRef() {
+  if (!state.ref || !P.REF_RE.test(state.ref)) { state.ref = B.newReference(); save(); }
+  return state.ref;
+}
+
+// Send the brief to the Google Form. The response is opaque (no-cors), so this
+// waits for the requests to be handed off, with a time limit, and never blocks checkout.
+function sendBrief(bodies) {
+  const posts = bodies.map(body => fetch(B.FORM_ACTION, {
+    method: 'POST',
+    mode: 'no-cors',
+    keepalive: true,
+    credentials: 'omit',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString()
+  }).then(() => true, () => false));
+  const timeout = new Promise(resolve => setTimeout(() => resolve('timeout'), FORM_TIMEOUT_MS));
+  return Promise.race([Promise.all(posts), timeout]);
+}
+
+function resetButton() {
+  const button = $('#wizard-next');
+  busy = false;
+  button.disabled = false;
+  button.removeAttribute('aria-busy');
+  renderChrome();
+}
+
+async function checkout() {
+  const err = $('#error-checkout');
+  err.textContent = '';
+  const v = P.validateBrief({ ...state });
+  if (!v.ok) {
+    err.textContent = 'Something is missing. Use Back to check your answers.';
+    return;
+  }
+  const link = P.paymentLink(state);
+  if (!link || !/^https:\/\/buy\.stripe\.com\//.test(link)) {
+    err.textContent = 'Online checkout is not available for this order. Email alexanderlmiller500@gmail.com to order, or use Fiverr or Upwork below.';
+    return;
+  }
+  const ref = ensureRef();
+  const button = $('#wizard-next');
+  busy = true;
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  button.textContent = 'Saving your brief…';
+  track('begin_checkout', { checkout_provider: 'stripe', currency: 'USD', value: v.quote.total, order_type: v.quote.linkKey.replace(/_\d+/, '') });
+
+  let result = 'skipped';
+  try {
+    // Honeypot filled: a bot, so skip the brief but behave the same.
+    if (!$('#field-website').value) result = await sendBrief(B.formBodies(ref, state, P));
+  } catch (_) {
+    result = 'error';
+  }
+  if (result === 'error' || (Array.isArray(result) && !result.every(Boolean))) {
+    err.textContent = 'Your brief could not be saved. Check your connection and try again, or email alexanderlmiller500@gmail.com.';
+    resetButton();
+    return;
+  }
+  button.textContent = 'Opening secure checkout…';
+  save();
+  window.location.assign(`${link}?client_reference_id=${encodeURIComponent(ref)}`);
+}
+
+// ---------- events ----------
 function bind() {
-  $$('[data-select-package]').forEach(button => {
-    button.addEventListener('click', () => {
-      setMode('package', button.dataset.selectPackage);
-      $('#order-brief-flow')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+  const form = $('#wizard-form');
+  form.addEventListener('submit', e => { e.preventDefault(); next(); });
+  $('#wizard-back').addEventListener('click', back);
+  $('#wizard-restart').addEventListener('click', () => {
+    clearSaved();
+    Object.assign(state, DEFAULTS);
+    fillForm();
+    $('#file-status').textContent = '';
+    $$('.wizard-error').forEach(e => { e.textContent = ''; });
+    updateLive();
+    showOnly('videos');
+    renderChrome();
+    focusStep('videos');
   });
 
-  $('#brief-submitted')?.addEventListener('change', renderBriefFlow);
-  $('#copy-brief-reference')?.addEventListener('click', () => { copyReference(); });
-
-  $('#open-brief-form')?.addEventListener('click', event => {
-    if (event.currentTarget.getAttribute('aria-disabled') === 'true') event.preventDefault();
+  form.addEventListener('input', e => {
+    const t = e.target;
+    switch (t.name) {
+      case 'quantity': if (t.value !== '') state.quantity = clampInt(t.value, P.LIMITS.minQty, P.LIMITS.maxQty, state.quantity); setError('#error-videos', ''); break;
+      case 'clips': if (t.value !== '') state.clips = clampInt(t.value, P.LIMITS.minClips, P.LIMITS.maxClips, state.clips); setError('#error-videos', ''); break;
+      case 'scriptText':
+        if (t.value.length > P.LIMITS.script) t.value = t.value.slice(0, P.LIMITS.script);
+        state.scriptText = t.value; break;
+      case 'scriptLink':
+        state.scriptLink = t.value.trim();
+        if (!state.scriptLink || P.isHttpUrl(state.scriptLink)) setError('#error-script-link', '', t);
+        break;
+      case 'details':
+        if (t.value.length > P.LIMITS.details) t.value = t.value.slice(0, P.LIMITS.details);
+        state.details = t.value; break;
+      case 'detailLinks': state.detailLinks = t.value.slice(0, P.LIMITS.detailLinks); break;
+      case 'email': state.email = t.value.trim(); if (P.isEmail(state.email)) setError('#error-email', '', t); break;
+      default: break;
+    }
+    save();
+    updateLive();
+    if (t.name === 'quantity') renderChrome();
   });
-  $('#custom-checkout')?.addEventListener('click', event => {
-    if (event.currentTarget.getAttribute('aria-disabled') === 'true') event.preventDefault();
+  form.addEventListener('change', e => {
+    const t = e.target;
+    if (t.name === 'length') state.length = Number(t.value);
+    if (t.name === 'type') { state.type = t.value; setError('#error-type', ''); }
+    if (t.name === 'physical') { state.physical = t.value; setError('#error-physical', ''); }
+    if (t.name === 'quantity') { state.quantity = clampInt(t.value, P.LIMITS.minQty, P.LIMITS.maxQty, 0); t.value = String(state.quantity); }
+    if (t.name === 'clips') { state.clips = clampInt(t.value, P.LIMITS.minClips, P.LIMITS.maxClips, 0); t.value = String(state.clips); }
+    save();
+    updateLive();
+    if (t.name === 'quantity') renderChrome();
   });
+  $$('[data-qty-step]').forEach(b => b.addEventListener('click', () => {
+    state.quantity = clampInt(state.quantity + Number(b.dataset.qtyStep), P.LIMITS.minQty, P.LIMITS.maxQty, 0);
+    $('#field-quantity').value = String(state.quantity);
+    setError('#error-videos', '');
+    save(); updateLive(); renderChrome();
+  }));
+  $$('[data-clips-step]').forEach(b => b.addEventListener('click', () => {
+    state.clips = clampInt(state.clips + Number(b.dataset.clipsStep), P.LIMITS.minClips, P.LIMITS.maxClips, 0);
+    $('#field-clips').value = String(state.clips);
+    setError('#error-videos', '');
+    save(); updateLive();
+  }));
+  $('#field-script-file').addEventListener('change', onFile);
 
-  $$('[data-duration]').forEach(btn => {
-    btn.addEventListener('click', () => setDuration(Number(btn.dataset.duration)));
-  });
-
-  $('#qty-minus')?.addEventListener('click', () => setQuantity(state.quantity - 1));
-  $('#qty-plus')?.addEventListener('click', () => setQuantity(state.quantity + 1));
-  $('#order-qty')?.addEventListener('change', e => setQuantity(Number(e.target.value)));
-  $('#order-qty')?.addEventListener('input', e => {
-    const val = Number(e.target.value);
-    if (Number.isFinite(val)) setQuantity(val);
-  });
-
-  $('#choose-custom')?.addEventListener('click', () => {
-    resetBriefConfirmation();
-    state.mode = 'custom';
-    state.packageId = null;
-    ensureReference();
-    writeSession();
-    render();
-    $('#order-brief-flow')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Picking a choice card with Enter moves on, like pressing Next.
+  form.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.matches('input[type="radio"]')) { e.preventDefault(); next(); }
   });
 
   const menuButton = $('.menu-toggle');
@@ -533,50 +485,33 @@ function bind() {
       menuButton.setAttribute('aria-expanded', String(!open));
       nav.classList.toggle('open', !open);
     });
-    $$('a', nav).forEach(a => a.addEventListener('click', () => {
-      menuButton.setAttribute('aria-expanded', 'false');
-      nav.classList.remove('open');
-    }));
   }
-
   const year = $('#year');
   if (year) year.textContent = String(new Date().getFullYear());
 }
 
 function init() {
-  readSession();
-  readQuery();
-  ensureReference();
+  if (!P || !B || !$('#order-wizard')) return;
+  load();
+  const params = new URLSearchParams(window.location.search);
+  const canceled = params.get('checkout') === 'canceled';
+  if (canceled && P.validateBrief({ ...state }).ok) state.step = 'review';
+  if (params.toString()) {
+    try { window.history.replaceState(null, '', window.location.pathname + window.location.hash); } catch (_) { /* ignore */ }
+  }
+  fillForm();
   bind();
-  render();
+  updateLive();
+  showOnly(state.step);
+  renderChrome();
+  $('#order-wizard').dataset.state = 'ready';
+  // Coming back from Stripe with the browser's Back button restores this page from
+  // the back/forward cache; re-enable the checkout button.
+  window.addEventListener('pageshow', e => { if (e.persisted && busy) resetButton(); });
+  if (canceled) {
+    $('#error-checkout').textContent = 'Checkout was canceled. Your answers are saved, so you can try again whenever you are ready.';
+  }
 }
 
-if (typeof document !== 'undefined' && document.querySelector) {
-  init();
-}
-
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    DURATION_PRICES,
-    CUSTOM_CHECKOUT_LINKS,
-    PACKAGES,
-    google,
-    createReference,
-    REF_PATTERN,
-    formConfigured,
-    buildGoogleFormUrl,
-    selectionDetails,
-    selectionForForm,
-    lengthForForm,
-    videosForForm,
-    FORM_ORDER_TYPE,
-    unitPrice,
-    totalPrice,
-    state,
-    ensureReference,
-    renderBriefFlow,
-    render,
-    resetBriefConfirmation
-  };
-}
+init();
 })();
