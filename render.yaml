@@ -1,0 +1,22 @@
+# Render Blueprint for the Alex UGC Pro checkout API only.
+# The static website stays on GitHub Pages; this service just creates Stripe Checkout Sessions.
+services:
+  - type: web
+    name: alexugc-checkout
+    runtime: node
+    plan: free            # cold starts can take ~50s; "starter" removes them
+    region: virginia
+    branch: main
+    buildCommand: echo "no dependencies"
+    startCommand: node checkout-api/server.mjs
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: STRIPE_SECRET_KEY
+        sync: false       # set in the Render dashboard; never commit it
+      - key: SITE_URL
+        value: https://alexugcpro.com
+      - key: ALLOWED_ORIGINS
+        value: https://alexugcpro.com,https://www.alexugcpro.com
+      - key: NODE_VERSION
+        value: "20"
