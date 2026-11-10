@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Order UGC Videos | Alex Miller</title>
-  <meta name="description" content="Order UGC from Alexander Miller in a few quick steps. Completed videos and raw footage from $80 by length, b-roll clips at $7 each. Share your script, then pay securely with Stripe.">
+  <meta name="description" content="Order UGC from Alexander Miller in a few quick steps. Full-service videos from $80, raw footage from $64, b-roll clips at $7 each. Share your script, then pay securely with Stripe.">
   <meta name="google-site-verification" content="j1OPjEpCe_sDV97BjxS5veO-FtokwcFiBUsz4R5Y9y0">
   <meta name="theme-color" content="#f5f3eb">
   <meta property="og:title" content="Order UGC Videos | Alex Miller">
-  <meta property="og:description" content="Order completed UGC videos, raw footage, or b-roll clips in a few quick steps, then pay securely with Stripe.">
+  <meta property="og:description" content="Order full-service UGC videos, raw footage, or b-roll clips in a few quick steps, then pay securely with Stripe.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://alexugcpro.com/order/">
   <meta property="og:image" content="https://alexugcpro.com/assets/images/social-preview.jpg">
@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="../styles.css">
   <script>document.documentElement.classList.add("js")</script>
   <script defer src="pricing.js"></script>
-  <script defer src="checkout-config.js"></script>
+  <script defer src="brief.js"></script>
   <script defer src="order.js"></script>
   <script defer src="../analytics.js"></script>
 </head>
@@ -54,64 +54,59 @@
         <!-- Honeypot for bots; real buyers never see it. -->
         <div class="wizard-hp" aria-hidden="true"><label>Website<input type="text" name="website" id="field-website" tabindex="-1" autocomplete="off"></label></div>
 
-        <!-- 1. Videos + length -->
+        <!-- 1. What you need: videos, length, b-roll clips -->
         <section class="wizard-card" data-step="videos" aria-labelledby="q-videos" hidden>
           <span class="kicker">ORDER <span>/ UGC</span></span>
-          <h2 class="wizard-question" id="q-videos" tabindex="-1">How many videos do you need?</h2>
+          <h2 class="wizard-question" id="q-videos" tabindex="-1">What do you need?</h2>
+          <p class="wizard-sub">Add videos, b-roll clips, or both. Set either one to 0 if you don't need it.</p>
           <div class="wizard-field">
             <span class="wizard-label" id="qty-label">Number of videos</span>
             <div class="wizard-stepper" role="group" aria-labelledby="qty-label">
               <button type="button" class="wizard-stepper-btn" data-qty-step="-1" aria-label="One fewer video">−</button>
-              <input id="field-quantity" name="quantity" type="number" inputmode="numeric" min="1" max="100" step="1" value="1" aria-labelledby="qty-label" aria-describedby="qty-help">
+              <input id="field-quantity" name="quantity" type="number" inputmode="numeric" min="0" max="100" step="1" value="1" aria-labelledby="qty-label" aria-describedby="qty-help">
               <button type="button" class="wizard-stepper-btn" data-qty-step="1" aria-label="One more video">+</button>
             </div>
-            <p class="wizard-help" id="qty-help">1 to 100 videos.</p>
+            <p class="wizard-help" id="qty-help">0 to 100 videos.</p>
           </div>
-          <fieldset class="wizard-field">
+          <fieldset class="wizard-field" id="length-field">
             <legend class="wizard-label">Length of each video</legend>
             <div class="wizard-chips" id="length-options">
-              <label class="wizard-chip"><input type="radio" name="length" value="15" checked><span><strong>15s</strong><small>$80</small></span></label>
-              <label class="wizard-chip"><input type="radio" name="length" value="30"><span><strong>30s</strong><small>$100</small></span></label>
-              <label class="wizard-chip"><input type="radio" name="length" value="45"><span><strong>45s</strong><small>$100</small></span></label>
-              <label class="wizard-chip"><input type="radio" name="length" value="60"><span><strong>60s</strong><small>$120</small></span></label>
-              <label class="wizard-chip"><input type="radio" name="length" value="90"><span><strong>90s</strong><small>$150</small></span></label>
-              <label class="wizard-chip"><input type="radio" name="length" value="120"><span><strong>120s</strong><small>$160</small></span></label>
+              <label class="wizard-chip"><input type="radio" name="length" value="15" checked><span><strong>15s</strong><small>$80</small><small class="wizard-chip-raw">raw $64</small></span></label>
+              <label class="wizard-chip"><input type="radio" name="length" value="30"><span><strong>30s</strong><small>$100</small><small class="wizard-chip-raw">raw $80</small></span></label>
+              <label class="wizard-chip"><input type="radio" name="length" value="45"><span><strong>45s</strong><small>$100</small><small class="wizard-chip-raw">raw $80</small></span></label>
+              <label class="wizard-chip"><input type="radio" name="length" value="60"><span><strong>60s</strong><small>$120</small><small class="wizard-chip-raw">raw $96</small></span></label>
+              <label class="wizard-chip"><input type="radio" name="length" value="90"><span><strong>90s</strong><small>$150</small><small class="wizard-chip-raw">raw $120</small></span></label>
+              <label class="wizard-chip"><input type="radio" name="length" value="120"><span><strong>120s</strong><small>$160</small><small class="wizard-chip-raw">raw $128</small></span></label>
             </div>
-            <p class="wizard-help">Price per video. Only need b-roll clips? Pick any option here and choose b-roll on the next step. Clips are $7 each and length does not apply.</p>
+            <p class="wizard-help">Price per video. Full-service first, raw footage (20% less) second. You'll pick on the next step.</p>
           </fieldset>
+          <div class="wizard-field">
+            <span class="wizard-label" id="clips-label">Number of b-roll clips</span>
+            <div class="wizard-stepper" role="group" aria-labelledby="clips-label">
+              <button type="button" class="wizard-stepper-btn" data-clips-step="-1" aria-label="One fewer b-roll clip">−</button>
+              <input id="field-clips" name="clips" type="number" inputmode="numeric" min="0" max="200" step="1" value="0" aria-labelledby="clips-label" aria-describedby="clips-help">
+              <button type="button" class="wizard-stepper-btn" data-clips-step="1" aria-label="One more b-roll clip">+</button>
+            </div>
+            <p class="wizard-help" id="clips-help">Short supporting clips of the product in use. $7 per clip, 0 to 200 clips.</p>
+          </div>
           <p class="wizard-estimate" id="estimate-videos" aria-live="polite"></p>
+          <p class="wizard-error" id="error-videos" role="alert"></p>
         </section>
 
-        <!-- 2. Type -->
+        <!-- 2. Full-service or raw (only when videos > 0) -->
         <section class="wizard-card" data-step="type" aria-labelledby="q-type" hidden>
-          <h2 class="wizard-question" id="q-type" tabindex="-1">Completed videos, raw footage, or just b-roll content?</h2>
+          <h2 class="wizard-question" id="q-type" tabindex="-1">Full-service videos or raw footage?</h2>
           <fieldset class="wizard-field">
-            <legend class="sr-only">Type of content</legend>
+            <legend class="sr-only">Type of video</legend>
             <div class="wizard-options">
-              <label class="wizard-option"><input type="radio" name="type" value="completed"><span><strong>Completed videos</strong><small>Edited, captioned, ready to post. Priced by length.</small></span></label>
-              <label class="wizard-option"><input type="radio" name="type" value="raw"><span><strong>Raw footage</strong><small>Unedited takes for your team to cut. Same price as completed videos.</small></span></label>
-              <label class="wizard-option"><input type="radio" name="type" value="broll"><span><strong>Just b-roll</strong><small>Short supporting clips of the product in use. $7 per clip.</small></span></label>
+              <label class="wizard-option"><input type="radio" name="type" value="full"><span><strong>Full-service</strong><small>B-roll and editing included. Captioned and ready to post. <b id="type-price-full"></b></small></span></label>
+              <label class="wizard-option"><input type="radio" name="type" value="raw"><span><strong>Raw footage</strong><small>Unedited takes for your team to cut, 20% less. <b id="type-price-raw"></b></small></span></label>
             </div>
           </fieldset>
           <p class="wizard-error" id="error-type" role="alert"></p>
         </section>
 
-        <!-- 3. B-roll clips (only for b-roll) -->
-        <section class="wizard-card" data-step="clips" aria-labelledby="q-clips" hidden>
-          <h2 class="wizard-question" id="q-clips" tabindex="-1">How many b-roll clips do you need?</h2>
-          <div class="wizard-field">
-            <span class="wizard-label" id="clips-label">Number of clips</span>
-            <div class="wizard-stepper" role="group" aria-labelledby="clips-label">
-              <button type="button" class="wizard-stepper-btn" data-clips-step="-1" aria-label="One fewer clip">−</button>
-              <input id="field-clips" name="clips" type="number" inputmode="numeric" min="1" max="200" step="1" value="5" aria-labelledby="clips-label" aria-describedby="clips-help">
-              <button type="button" class="wizard-stepper-btn" data-clips-step="1" aria-label="One more clip">+</button>
-            </div>
-            <p class="wizard-help" id="clips-help">$7 per clip, 1 to 200 clips.</p>
-          </div>
-          <p class="wizard-estimate" id="estimate-clips" aria-live="polite"></p>
-        </section>
-
-        <!-- 4. Script -->
+        <!-- 3. Script -->
         <section class="wizard-card" data-step="script" aria-labelledby="q-script" hidden>
           <h2 class="wizard-question" id="q-script" tabindex="-1">Share your script</h2>
           <p class="wizard-sub">Upload a file, paste a link, paste the script below, or any mix. No script yet? Leave this blank and add your ideas in a later step.</p>
@@ -123,7 +118,7 @@
           </div>
           <div class="wizard-field">
             <label class="wizard-label" for="field-script-link">Link to your script <span>(optional)</span></label>
-            <input class="wizard-input" id="field-script-link" name="scriptLink" type="url" inputmode="url" placeholder="https://docs.google.com/..." maxlength="500" aria-describedby="error-script-link">
+            <input class="wizard-input" id="field-script-link" name="scriptLink" type="url" inputmode="url" placeholder="https://docs.google.com/..." maxlength="300" aria-describedby="error-script-link">
             <p class="wizard-error" id="error-script-link" role="alert"></p>
           </div>
           <div class="wizard-field">
@@ -133,7 +128,7 @@
           </div>
         </section>
 
-        <!-- 5. Physical product -->
+        <!-- 4. Physical product -->
         <section class="wizard-card" data-step="physical" aria-labelledby="q-physical" hidden>
           <h2 class="wizard-question" id="q-physical" tabindex="-1">Is this a physical product that should be shipped to me?</h2>
           <fieldset class="wizard-field">
@@ -147,7 +142,7 @@
           <p class="wizard-error" id="error-physical" role="alert"></p>
         </section>
 
-        <!-- 6. Details -->
+        <!-- 5. Details -->
         <section class="wizard-card" data-step="details" aria-labelledby="q-details" hidden>
           <h2 class="wizard-question" id="q-details" tabindex="-1">Any additional details?</h2>
           <p class="wizard-sub">Optional. Add reference clips, anything that needs clarifying, or how to access the product (app login steps, download links, promo codes).</p>
@@ -163,7 +158,7 @@
           <p class="wizard-help">Please do not include passwords. Alex will ask for any account access by email.</p>
         </section>
 
-        <!-- 7. Email -->
+        <!-- 6. Email -->
         <section class="wizard-card" data-step="email" aria-labelledby="q-email" hidden>
           <h2 class="wizard-question" id="q-email" tabindex="-1">Provide the email you'd like to communicate with for this order.</h2>
           <div class="wizard-field">
@@ -173,12 +168,17 @@
           </div>
         </section>
 
-        <!-- 8. Review -->
+        <!-- 7. Review -->
         <section class="wizard-card" data-step="review" aria-labelledby="q-review" hidden>
           <h2 class="wizard-question" id="q-review" tabindex="-1">Review your order</h2>
           <dl class="wizard-review" id="review-list"></dl>
           <div class="wizard-total"><span>Total</span><strong id="review-total">$0</strong></div>
-          <p class="wizard-help">You'll pay on Stripe's secure checkout page. Your script and details are attached to your order so Alex has everything in one place.</p>
+          <div class="wizard-callout wizard-stripe-steps" id="stripe-steps">
+            <p><strong>One step on Stripe's page:</strong> set each quantity to match your order, then check the total.</p>
+            <ul id="stripe-qty-list"></ul>
+            <p>Stripe's total should read <strong id="stripe-expected-total">$0</strong>.</p>
+          </div>
+          <p class="wizard-help">Your script and details are saved with order reference <strong id="review-ref"></strong> when you continue, so Alex has everything in one place. You'll pay on Stripe's secure checkout page.</p>
           <p class="wizard-error" id="error-checkout" role="alert"></p>
         </section>
 

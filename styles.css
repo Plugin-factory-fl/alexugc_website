@@ -1037,3 +1037,9 @@
   .wizard-progress-bar{transition:none}
 }
 .price .price-from{font-family:var(--sans);font-size:18px;letter-spacing:0;margin-right:4px;vertical-align:middle;opacity:.75}
+.wizard-stripe-steps{margin:18px 0 14px;background:#f2f6e4;border-color:#c9d79a;color:var(--ink)}
+.wizard-stripe-steps p{margin:0}
+.wizard-stripe-steps ul{margin:8px 0 8px 20px;padding:0}
+.wizard-stripe-steps li{margin:2px 0;font-weight:600}
+.wizard-option small b{display:block;margin-top:4px;font-weight:700;color:inherit}
+.wizard-chip small.wizard-chip-raw{font-size:12px;opacity:.65}

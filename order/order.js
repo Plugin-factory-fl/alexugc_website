@@ -3,13 +3,17 @@
 
 /*
  * One-question-at-a-time UGC order wizard.
- * Answers live only in this tab's sessionStorage until checkout. They are sent
- * once, by POST, to the checkout API, which creates a Stripe Checkout Session.
- * Nothing from the brief is put in URLs, analytics, or console logs.
+ * Answers live only in this tab's sessionStorage until checkout. At checkout the
+ * brief is POSTed to Alex's Google Form (in the request body, never a URL) with an
+ * order reference, then the buyer goes to the matching Stripe Payment Link with
+ * that reference as client_reference_id. Nothing from the brief is put in URLs,
+ * analytics, or console logs.
  */
 
 const P = window.UGCPricing;
-const STORE_KEY = 'ugc-order-wizard-v1';
+const B = window.UGCBrief;
+const STORE_KEY = 'ugc-order-wizard-v2';
+const FORM_TIMEOUT_MS = 4000;
 const $ = (q, ctx = document) => ctx.querySelector(q);
 const $$ = (q, ctx = document) => [...ctx.querySelectorAll(q)];
 const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -20,7 +24,8 @@ const DEFAULTS = {
   quantity: 1,
   length: 15,
   type: '',
-  clips: 5,
+  clips: 0,
+  ref: '',
   scriptText: '',
   scriptLink: '',
   scriptFileName: '',
@@ -33,8 +38,8 @@ const state = { ...DEFAULTS };
 let busy = false;
 
 function steps() {
-  const list = ['videos', 'type'];
-  if (state.type === 'broll') list.push('clips');
+  const list = ['videos'];
+  if (state.quantity > 0) list.push('type');
   list.push('script', 'physical', 'details', 'email', 'review');
   return list;
 }
@@ -58,6 +63,7 @@ function load() {
     state.quantity = clampInt(d.quantity, L.minQty, L.maxQty, DEFAULTS.quantity);
     state.length = P.LENGTHS.includes(Number(d.length)) ? Number(d.length) : DEFAULTS.length;
     state.type = P.TYPES[d.type] ? d.type : '';
+    state.ref = typeof d.ref === 'string' && P.REF_RE.test(d.ref) ? d.ref : '';
     state.clips = clampInt(d.clips, L.minClips, L.maxClips, DEFAULTS.clips);
     state.scriptText = typeof d.scriptText === 'string' ? d.scriptText.slice(0, L.script) : '';
     state.scriptLink = typeof d.scriptLink === 'string' ? d.scriptLink.slice(0, L.scriptLink) : '';
@@ -89,14 +95,29 @@ function fillForm() {
 }
 
 function currentQuote() {
-  return P.quote({ type: state.type || 'completed', length: state.length, quantity: state.quantity, clips: state.clips });
+  return P.quote({ type: state.type, length: state.length, quantity: state.quantity, clips: state.clips });
+}
+
+function estimateText() {
+  const parts = [];
+  if (state.quantity > 0) {
+    const full = P.FULL_PRICES[state.length] * state.quantity;
+    const raw = P.RAW_PRICES[state.length] * state.quantity;
+    const t = P.TYPES[state.type];
+    const videoTotal = t ? t.prices[state.length] * state.quantity : null;
+    parts.push(`${state.quantity} × ${state.length}s video${state.quantity === 1 ? '' : 's'} = ${videoTotal !== null ? P.money(videoTotal) + ` (${t.label.toLowerCase()})` : `${P.money(full)} full-service or ${P.money(raw)} raw`}`);
+  }
+  if (state.clips > 0) parts.push(`${state.clips} b-roll clip${state.clips === 1 ? '' : 's'} × ${P.money(P.BROLL_CLIP_PRICE)} = ${P.money(state.clips * P.BROLL_CLIP_PRICE)}`);
+  return parts.join(' · ');
 }
 
 function updateLive() {
-  const vq = P.quote({ type: 'completed', length: state.length, quantity: state.quantity });
-  $('#estimate-videos').textContent = vq.ok ? `${state.quantity} × ${state.length}s video${state.quantity === 1 ? '' : 's'} = ${P.money(vq.total)}` : '';
-  const cq = P.quote({ type: 'broll', clips: state.clips });
-  $('#estimate-clips').textContent = cq.ok ? `${state.clips} clip${state.clips === 1 ? '' : 's'} × ${P.money(P.BROLL_CLIP_PRICE)} = ${P.money(cq.total)}` : '';
+  $('#estimate-videos').textContent = estimateText();
+  const lengthField = $('#length-field');
+  lengthField.hidden = state.quantity === 0;
+  lengthField.disabled = state.quantity === 0;
+  $('#type-price-full').textContent = `${P.money(P.FULL_PRICES[state.length])} per ${state.length}s video.`;
+  $('#type-price-raw').textContent = `${P.money(P.RAW_PRICES[state.length])} per ${state.length}s video.`;
   const len = state.scriptText.length;
   const sc = $('#script-count');
   sc.textContent = `${len.toLocaleString('en-US')} / ${P.LIMITS.script.toLocaleString('en-US')} characters${len >= P.LIMITS.script ? ' (limit reached)' : ''}`;
@@ -122,11 +143,15 @@ function renderReview() {
   const dl = $('#review-list');
   dl.textContent = '';
   const q = currentQuote();
-  addRow(dl, 'Content', P.TYPES[state.type] ? P.TYPES[state.type].label : 'Not chosen');
-  if (state.type === 'broll') {
-    addRow(dl, 'Clips', `${state.clips} × ${P.money(P.BROLL_CLIP_PRICE)}`);
-  } else {
-    addRow(dl, 'Videos', `${state.quantity} × ${state.length}s at ${P.money(P.LENGTH_PRICES[state.length])} each`);
+  const qtyList = $('#stripe-qty-list');
+  qtyList.textContent = '';
+  if (q.ok) {
+    q.lines.forEach(l => {
+      addRow(dl, l.key === 'broll' ? 'B-roll clips' : 'Videos', `${l.quantity} × ${l.label} at ${P.money(l.unitPrice)} = ${P.money(l.subtotal)}`);
+      const li = document.createElement('li');
+      li.textContent = `${l.stripeName}: quantity ${l.quantity}`;
+      qtyList.append(li);
+    });
   }
   const scriptParts = [];
   if (state.scriptText.trim()) scriptParts.push(`${state.scriptText.length.toLocaleString('en-US')} characters pasted`);
@@ -137,6 +162,8 @@ function renderReview() {
   addRow(dl, 'Additional details', state.details.trim() || state.detailLinks.trim() ? 'Added' : 'None');
   addRow(dl, 'Email', state.email);
   $('#review-total').textContent = q.ok ? P.money(q.total) : '—';
+  $('#stripe-expected-total').textContent = q.ok ? P.money(q.total) : '—';
+  $('#review-ref').textContent = ensureRef();
 }
 
 // ---------- step rendering ----------
@@ -216,18 +243,22 @@ function setError(id, msg, field) {
 function validateStep(name) {
   switch (name) {
     case 'videos': {
-      state.quantity = clampInt($('#field-quantity').value, P.LIMITS.minQty, P.LIMITS.maxQty, 1);
+      state.quantity = clampInt($('#field-quantity').value, P.LIMITS.minQty, P.LIMITS.maxQty, 0);
       $('#field-quantity').value = String(state.quantity);
+      state.clips = clampInt($('#field-clips').value, P.LIMITS.minClips, P.LIMITS.maxClips, 0);
+      $('#field-clips').value = String(state.clips);
+      if (state.quantity === 0 && state.clips === 0) {
+        setError('#error-videos', 'Add at least one video or one b-roll clip to continue.');
+        $('#field-quantity').focus();
+        return false;
+      }
+      setError('#error-videos', '');
+      updateLive();
       return true;
     }
     case 'type': {
       if (!P.TYPES[state.type]) { setError('#error-type', 'Choose one option to continue.'); $('input[name="type"]').focus(); return false; }
       setError('#error-type', '');
-      return true;
-    }
-    case 'clips': {
-      state.clips = clampInt($('#field-clips').value, P.LIMITS.minClips, P.LIMITS.maxClips, 1);
-      $('#field-clips').value = String(state.clips);
       return true;
     }
     case 'script': {
@@ -310,9 +341,32 @@ async function onFile(event) {
 }
 
 // ---------- checkout ----------
-function endpoint() {
-  const base = String(window.UGC_CHECKOUT_ENDPOINT || '').trim().replace(/\/+$/, '');
-  return /^https?:\/\//.test(base) ? `${base}/api/checkout` : '';
+function ensureRef() {
+  if (!state.ref || !P.REF_RE.test(state.ref)) { state.ref = B.newReference(); save(); }
+  return state.ref;
+}
+
+// Send the brief to the Google Form. The response is opaque (no-cors), so this
+// waits for the requests to be handed off, with a time limit, and never blocks checkout.
+function sendBrief(bodies) {
+  const posts = bodies.map(body => fetch(B.FORM_ACTION, {
+    method: 'POST',
+    mode: 'no-cors',
+    keepalive: true,
+    credentials: 'omit',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString()
+  }).then(() => true, () => false));
+  const timeout = new Promise(resolve => setTimeout(() => resolve('timeout'), FORM_TIMEOUT_MS));
+  return Promise.race([Promise.all(posts), timeout]);
+}
+
+function resetButton() {
+  const button = $('#wizard-next');
+  busy = false;
+  button.disabled = false;
+  button.removeAttribute('aria-busy');
+  renderChrome();
 }
 
 async function checkout() {
@@ -323,63 +377,34 @@ async function checkout() {
     err.textContent = 'Something is missing. Use Back to check your answers.';
     return;
   }
-  const url = endpoint();
-  if (!url) {
-    err.textContent = 'Online checkout is not available right now. Email alexanderlmiller500@gmail.com to order, or use Fiverr or Upwork below.';
+  const link = P.paymentLink(state);
+  if (!link || !/^https:\/\/buy\.stripe\.com\//.test(link)) {
+    err.textContent = 'Online checkout is not available for this order. Email alexanderlmiller500@gmail.com to order, or use Fiverr or Upwork below.';
     return;
   }
+  const ref = ensureRef();
   const button = $('#wizard-next');
   busy = true;
   button.disabled = true;
   button.setAttribute('aria-busy', 'true');
-  button.textContent = 'Opening secure checkout…';
-  track('begin_checkout', { checkout_provider: 'stripe', currency: 'USD', value: v.quote.total, order_type: state.type });
+  button.textContent = 'Saving your brief…';
+  track('begin_checkout', { checkout_provider: 'stripe', currency: 'USD', value: v.quote.total, order_type: v.quote.linkKey.replace(/_\d+/, '') });
 
-  const controller = typeof AbortController === 'function' ? new AbortController() : null;
-  const timer = setTimeout(() => controller && controller.abort(), 75000);
+  let result = 'skipped';
   try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: state.type,
-        length: state.length,
-        quantity: state.quantity,
-        clips: state.clips,
-        scriptText: state.scriptText,
-        scriptLink: state.scriptLink,
-        scriptFileName: state.scriptFileName,
-        physical: state.physical,
-        details: state.details,
-        detailLinks: state.detailLinks,
-        email: state.email,
-        website: $('#field-website').value,
-        expectedTotal: v.quote.total
-      }),
-      signal: controller ? controller.signal : undefined,
-      credentials: 'omit'
-    });
-    const data = await res.json().catch(() => ({}));
-    // Only follow Stripe-hosted checkout URLs (local tests may opt in to a mock URL).
-    const okUrl = res.ok && typeof data.url === 'string'
-      && (/^https:\/\/checkout\.stripe\.com\//.test(data.url) || window.UGC_ALLOW_TEST_CHECKOUT_URL === true);
-    if (okUrl) {
-      save();
-      window.location.assign(data.url);
-      return;
-    }
-    err.textContent = res.status === 429
-      ? 'Too many attempts. Please wait a few minutes and try again.'
-      : 'Checkout could not open. Please try again, or email alexanderlmiller500@gmail.com.';
+    // Honeypot filled: a bot, so skip the brief but behave the same.
+    if (!$('#field-website').value) result = await sendBrief(B.formBodies(ref, state, P));
   } catch (_) {
-    err.textContent = 'Checkout could not be reached. Check your connection and try again.';
-  } finally {
-    clearTimeout(timer);
+    result = 'error';
   }
-  busy = false;
-  button.disabled = false;
-  button.removeAttribute('aria-busy');
-  renderChrome();
+  if (result === 'error' || (Array.isArray(result) && !result.every(Boolean))) {
+    err.textContent = 'Your brief could not be saved. Check your connection and try again, or email alexanderlmiller500@gmail.com.';
+    resetButton();
+    return;
+  }
+  button.textContent = 'Opening secure checkout…';
+  save();
+  window.location.assign(`${link}?client_reference_id=${encodeURIComponent(ref)}`);
 }
 
 // ---------- events ----------
@@ -402,8 +427,8 @@ function bind() {
   form.addEventListener('input', e => {
     const t = e.target;
     switch (t.name) {
-      case 'quantity': if (t.value !== '') state.quantity = clampInt(t.value, P.LIMITS.minQty, P.LIMITS.maxQty, state.quantity); break;
-      case 'clips': if (t.value !== '') state.clips = clampInt(t.value, P.LIMITS.minClips, P.LIMITS.maxClips, state.clips); break;
+      case 'quantity': if (t.value !== '') state.quantity = clampInt(t.value, P.LIMITS.minQty, P.LIMITS.maxQty, state.quantity); setError('#error-videos', ''); break;
+      case 'clips': if (t.value !== '') state.clips = clampInt(t.value, P.LIMITS.minClips, P.LIMITS.maxClips, state.clips); setError('#error-videos', ''); break;
       case 'scriptText':
         if (t.value.length > P.LIMITS.script) t.value = t.value.slice(0, P.LIMITS.script);
         state.scriptText = t.value; break;
@@ -420,25 +445,29 @@ function bind() {
     }
     save();
     updateLive();
+    if (t.name === 'quantity') renderChrome();
   });
   form.addEventListener('change', e => {
     const t = e.target;
     if (t.name === 'length') state.length = Number(t.value);
     if (t.name === 'type') { state.type = t.value; setError('#error-type', ''); }
     if (t.name === 'physical') { state.physical = t.value; setError('#error-physical', ''); }
-    if (t.name === 'quantity') { state.quantity = clampInt(t.value, P.LIMITS.minQty, P.LIMITS.maxQty, 1); t.value = String(state.quantity); }
-    if (t.name === 'clips') { state.clips = clampInt(t.value, P.LIMITS.minClips, P.LIMITS.maxClips, 1); t.value = String(state.clips); }
+    if (t.name === 'quantity') { state.quantity = clampInt(t.value, P.LIMITS.minQty, P.LIMITS.maxQty, 0); t.value = String(state.quantity); }
+    if (t.name === 'clips') { state.clips = clampInt(t.value, P.LIMITS.minClips, P.LIMITS.maxClips, 0); t.value = String(state.clips); }
     save();
     updateLive();
+    if (t.name === 'quantity') renderChrome();
   });
   $$('[data-qty-step]').forEach(b => b.addEventListener('click', () => {
-    state.quantity = clampInt(state.quantity + Number(b.dataset.qtyStep), P.LIMITS.minQty, P.LIMITS.maxQty, 1);
+    state.quantity = clampInt(state.quantity + Number(b.dataset.qtyStep), P.LIMITS.minQty, P.LIMITS.maxQty, 0);
     $('#field-quantity').value = String(state.quantity);
-    save(); updateLive();
+    setError('#error-videos', '');
+    save(); updateLive(); renderChrome();
   }));
   $$('[data-clips-step]').forEach(b => b.addEventListener('click', () => {
-    state.clips = clampInt(state.clips + Number(b.dataset.clipsStep), P.LIMITS.minClips, P.LIMITS.maxClips, 1);
+    state.clips = clampInt(state.clips + Number(b.dataset.clipsStep), P.LIMITS.minClips, P.LIMITS.maxClips, 0);
     $('#field-clips').value = String(state.clips);
+    setError('#error-videos', '');
     save(); updateLive();
   }));
   $('#field-script-file').addEventListener('change', onFile);
@@ -462,7 +491,7 @@ function bind() {
 }
 
 function init() {
-  if (!P || !$('#order-wizard')) return;
+  if (!P || !B || !$('#order-wizard')) return;
   load();
   const params = new URLSearchParams(window.location.search);
   const canceled = params.get('checkout') === 'canceled';
@@ -476,6 +505,9 @@ function init() {
   showOnly(state.step);
   renderChrome();
   $('#order-wizard').dataset.state = 'ready';
+  // Coming back from Stripe with the browser's Back button restores this page from
+  // the back/forward cache; re-enable the checkout button.
+  window.addEventListener('pageshow', e => { if (e.persisted && busy) resetButton(); });
   if (canceled) {
     $('#error-checkout').textContent = 'Checkout was canceled. Your answers are saved, so you can try again whenever you are ready.';
   }

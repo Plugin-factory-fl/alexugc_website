@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="../../styles.css">
   <script>
     // The order is paid; forget the answers saved in this tab.
-    try { sessionStorage.removeItem('ugc-order-wizard-v1'); } catch (_) {}
+    try { sessionStorage.removeItem('ugc-order-wizard-v2'); } catch (_) {}
   </script>
   <script defer src="../../analytics.js"></script>
 </head>
@@ -30,7 +30,6 @@
         <span class="kicker">ORDER <span>/ CONFIRMED</span></span>
         <h1 class="wizard-question" id="thanks-title">Thank you for your order!</h1>
         <p class="thank-you-message" id="thank-you-message">Alex will reach out to you by email within 24 hours to confirm shipping address and gather any other details from you. His email is <a href="mailto:alexanderlmiller500@gmail.com">alexanderlmiller500@gmail.com</a>, so reach out if you have urgent information to pass along</p>
-        <p class="wizard-help">Stripe also emails your payment receipt.</p>
         <a class="button button-outline" href="../../">Back to the homepage</a>
       </section>
     </div>
