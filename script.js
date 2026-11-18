@@ -61,7 +61,7 @@ const instagram = $('#instagram-brief');
 const toast = $('#toast');
 let toastTimer;
 function showToast(message) { toast.textContent = message; toast.classList.add('visible'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('visible'), 4000); }
-form.addEventListener('submit', e => {
+if (form) form.addEventListener('submit', e => {
   e.preventDefault();
   if (!form.reportValidity()) return;
   const values = Object.fromEntries(new FormData(form));
@@ -88,6 +88,6 @@ async function copyBrief() {
   try { await navigator.clipboard.writeText(text); showToast('Project brief copied. Send it to @alex_ugc_pro on Instagram.'); }
   catch { $('#prepared-brief').select(); showToast('Your brief is selected. Copy it, then send it on Instagram.'); }
 }
-$('#copy-brief').addEventListener('click', copyBrief);
-$('#year').textContent = new Date().getFullYear();
+$('#copy-brief')?.addEventListener('click', copyBrief);
+const year = $('#year'); if (year) year.textContent = new Date().getFullYear();
 })();

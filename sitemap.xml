@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://alexugcpro.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
-  <url><loc>https://alexugcpro.com/portfolio/</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
-  <url><loc>https://alexugcpro.com/ugc-video-ads/</loc><changefreq>monthly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://alexugcpro.com/product-videos/</loc><changefreq>monthly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://alexugcpro.com/order/</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://alexugcpro.com/</loc><lastmod>2026-11-18</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://alexugcpro.com/portfolio/</loc><lastmod>2026-11-18</lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://alexugcpro.com/ugc-video-ads/</loc><lastmod>2026-11-18</lastmod><changefreq>monthly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://alexugcpro.com/product-videos/</loc><lastmod>2026-11-18</lastmod><changefreq>monthly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://alexugcpro.com/order/</loc><lastmod>2026-11-18</lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>
 </urlset>
