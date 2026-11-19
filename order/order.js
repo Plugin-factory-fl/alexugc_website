@@ -159,7 +159,7 @@ function renderReview() {
       li.textContent = l.key === 'broll' ? `${l.quantity} × UGC B-roll Clip, ${P.money(l.subtotal)}` : `${l.quantity} × ${l.stripeName}, ${P.money(l.subtotal)}`;
       qtyList.append(li);
     });
-    $('#stripe-steps-after').textContent = `Stripe's total will read ${P.money(q.total)}.`;
+    $('#stripe-steps-after').textContent = `Your Stripe total will be ${P.money(q.total)} before any promo code.`;
   }
   const scriptParts = [];
   if (state.scriptText.trim()) scriptParts.push(`${state.scriptText.length.toLocaleString('en-US')} characters pasted`);
