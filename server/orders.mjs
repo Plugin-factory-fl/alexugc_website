@@ -153,7 +153,18 @@ export async function sendEmail({ apiKey, from, to, subject, text, idempotencyKe
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
     body: JSON.stringify({ from, to: [to], subject, text })
   });
+  if (!resp.ok) {
+    // Log Resend's status and message only; email addresses are redacted, no keys or brief text.
+    let msg = '';
+    try { const j = await resp.json(); msg = String((j && (j.message || j.name)) || ''); } catch { msg = ''; }
+    console.error(`resend send failed status=${resp.status} message=${redact(msg)}`);
+  }
   return resp.ok;
+}
+
+/** Remove email addresses and anything key shaped from a log string. */
+export function redact(s) {
+  return String(s).replace(/\S+@\S+/g, '[email]').replace(/\b(re|sk|rk|whsec)_[A-Za-z0-9_]+/g, '[redacted]').slice(0, 300);
 }
 
 // Google Form "UGC Creative Brief | Alex Miller"

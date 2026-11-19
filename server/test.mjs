@@ -3,7 +3,7 @@ import http from 'node:http';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createHmac } from 'node:crypto';
-import { briefMetadata, briefFromMetadata, briefText, cleanBrief, verifyStripeSignature } from './orders.mjs';
+import { briefMetadata, briefFromMetadata, briefText, cleanBrief, verifyStripeSignature, sendEmail, redact } from './orders.mjs';
 
 const AMOUNTS = { price_1UaGUY0A1ZGjwd5gqBRzrbG4: 8000, price_1UaGUZ0A1ZGjwd5gKfZ2X44n: 10000, price_1UaGUa0A1ZGjwd5gT2dNyi6A: 10000, price_1UaGUc0A1ZGjwd5gppy5Cfcf: 12000, price_1UaGUf0A1ZGjwd5ga1jeGie4: 15000, price_1UaGUh0A1ZGjwd5gf6e3DEG1: 16000, price_1UaGH30A1ZGjwd5g2xQ7dQv0: 6400, price_1UaGH90A1ZGjwd5gd2qooZh8: 8000, price_1UaGHB0A1ZGjwd5gGCKz2X86: 8000, price_1UaGHE0A1ZGjwd5gFfcF7RTz: 9600, price_1UaGHG0A1ZGjwd5g4S3SEZly: 12000, price_1UaGHJ0A1ZGjwd5gJJG1EzIm: 12800, price_1UaGHL0A1ZGjwd5gAbzrTMUt: 700 };
 const sessions = [];
@@ -111,5 +111,16 @@ try {
   w = await hook({ id: 'evt_4', type: 'customer.created', data: { object: {} } }); assert.equal(w.json.ignored, 'type');
   w = await hook({ id: 'evt_5', type: 'checkout.session.completed', data: { object: sessionObj('cs_unpaid', { payment_status: 'unpaid' }) } }); assert.equal(w.json.ignored, 'not paid yet'); assert.equal(emails.length, 1);
   r = await (await fetch('http://127.0.0.1:18998/health')).json(); assert.equal(r.webhook, true); assert.equal(r.email, true);
+  {
+    // Resend failure is logged with status and message, without addresses or keys.
+    const logs = []; const orig = console.error; console.error = (...a) => logs.push(a.join(' '));
+    const fake = async () => ({ ok: false, status: 403, json: async () => ({ message: 'You can only send testing emails to your own email address (owner@example.com). key re_abc123XYZ' }) });
+    const ok = await sendEmail({ apiKey: 're_secret', from: 'a@b.co', to: 'c@d.co', subject: 's', text: 't', idempotencyKey: 'k', fetchImpl: fake });
+    console.error = orig;
+    assert.equal(ok, false); assert.equal(logs.length, 1);
+    assert.match(logs[0], /status=403 message=You can only send testing emails/);
+    assert.ok(!/@|re_abc|re_secret/.test(logs[0]), logs[0]);
+    assert.equal(redact('x whsec_abc y@z.com'), 'x [redacted] [email]');
+  }
   console.log('server tests passed');
 } finally { child.kill(); mock.close(); }
