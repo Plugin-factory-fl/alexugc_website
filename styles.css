@@ -971,7 +971,7 @@
 .wizard-chip input,.wizard-option input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer}
 .wizard-chip span{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:62px;border:1px solid var(--line);border-radius:6px;background:var(--paper);transition:background .15s,border-color .15s,color .15s}
 .wizard-chip strong{font-size:16px}
-.wizard-chip small{font-size:13px;opacity:.8}
+.wizard-chip small{font-size:14px;opacity:.8}
 .wizard-options{display:grid;gap:12px}
 .wizard-options-row{grid-template-columns:1fr 1fr}
 .wizard-option span{display:flex;flex-direction:column;gap:4px;padding:18px 20px;border:1px solid var(--line);border-radius:6px;background:var(--paper);transition:background .15s,border-color .15s,color .15s;min-height:60px;justify-content:center}
@@ -1042,8 +1042,6 @@
 .wizard-stripe-steps ul{margin:8px 0 8px 20px;padding:0}
 .wizard-stripe-steps li{margin:2px 0;font-weight:600}
 .wizard-option small b{display:block;margin-top:4px;font-weight:700;color:inherit}
-.wizard-chip small.wizard-chip-raw{font-size:12px;opacity:.65}
+.wizard-chip small.wizard-chip-raw{font-size:14px;opacity:.65}
 .hero-h1-label{display:block;font-family:var(--sans);font-size:15px;font-weight:600;line-height:1.4;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}@media(max-width:760px){.hero-h1-label{font-size:14px;letter-spacing:.1em;margin-bottom:10px}}
-.wizard-help a,.thank-you-step a:not(.button){text-decoration:underline;text-underline-offset:3px}
-.thank-you-step{margin:0 0 24px;padding:20px;border:1px solid var(--ink);border-radius:6px;background:#fff;font-size:16px}
-.thank-you-step p{margin:0 0 14px}
+.wizard-help a{text-decoration:underline;text-underline-offset:3px}

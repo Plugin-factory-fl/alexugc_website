@@ -23,9 +23,9 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../styles.css">
   <script>document.documentElement.classList.add("js")</script>
-  <script defer src="pricing.js"></script>
-  <script defer src="brief.js"></script>
-  <script defer src="order.js"></script>
+  <script defer src="pricing.js?v=4"></script>
+  <script defer src="brief.js?v=4"></script>
+  <script defer src="order.js?v=4"></script>
   <script defer src="../analytics.js"></script>
 </head>
 <body class="order-page" data-asset-base="../">
@@ -67,10 +67,10 @@
             <span class="wizard-label" id="qty-label">Number of videos</span>
             <div class="wizard-stepper" role="group" aria-labelledby="qty-label">
               <button type="button" class="wizard-stepper-btn" data-qty-step="-1" aria-label="One fewer video">−</button>
-              <input id="field-quantity" name="quantity" type="number" inputmode="numeric" min="0" max="10" step="1" value="1" aria-labelledby="qty-label" aria-describedby="qty-help">
+              <input id="field-quantity" name="quantity" type="number" inputmode="numeric" min="0" max="50" step="1" value="1" aria-labelledby="qty-label" aria-describedby="qty-help">
               <button type="button" class="wizard-stepper-btn" data-qty-step="1" aria-label="One more video">+</button>
             </div>
-            <p class="wizard-help" id="qty-help">0 to 10 videos per order. Need more? Email <a href="mailto:alexanderlmiller500@gmail.com">alexanderlmiller500@gmail.com</a> for a custom quote.</p>
+            <p class="wizard-help" id="qty-help">0 to 50 videos per order. Need more? Email <a href="mailto:alexanderlmiller500@gmail.com">alexanderlmiller500@gmail.com</a> for a custom quote.</p>
           </div>
           <fieldset class="wizard-field" id="length-field">
             <legend class="wizard-label">Length of each video</legend>
@@ -88,11 +88,10 @@
             <span class="wizard-label" id="clips-label">Number of b-roll clips</span>
             <div class="wizard-stepper" role="group" aria-labelledby="clips-label">
               <button type="button" class="wizard-stepper-btn" data-clips-step="-1" aria-label="One fewer b-roll clip">−</button>
-              <input id="field-clips" name="clips" type="number" inputmode="numeric" min="0" max="100" step="1" value="0" aria-labelledby="clips-label" aria-describedby="clips-help clips-note">
+              <input id="field-clips" name="clips" type="number" inputmode="numeric" min="0" max="200" step="1" value="0" aria-labelledby="clips-label" aria-describedby="clips-help">
               <button type="button" class="wizard-stepper-btn" data-clips-step="1" aria-label="One more b-roll clip">+</button>
             </div>
-            <p class="wizard-help" id="clips-help">Short supporting clips of the product in use. $7 per clip. Choose 1 to 10 clips, or 15, 20, 25, 30, 40, 50, 75, or 100.</p>
-            <p class="wizard-note" id="clips-note" role="status" aria-live="polite"></p>
+            <p class="wizard-help" id="clips-help">Short supporting clips of the product in use. $7 per clip. Choose 0 to 200 clips.</p>
           </div>
           <p class="wizard-estimate" id="estimate-videos" aria-live="polite"></p>
           <p class="wizard-error" id="error-videos" role="alert"></p>
@@ -179,7 +178,7 @@
           <dl class="wizard-review" id="review-list"></dl>
           <div class="wizard-total"><span>Total</span><strong id="review-total">$0</strong></div>
           <div class="wizard-callout wizard-stripe-steps" id="stripe-steps">
-            <p id="stripe-steps-intro">Quantities are already set on Stripe's page, so there is nothing to change there.</p>
+            <p id="stripe-steps-intro">You pay for everything in one secure Stripe checkout. Quantities are already set, so there is nothing to change on Stripe.</p>
             <ul id="stripe-qty-list"></ul>
             <p id="stripe-steps-after"></p>
           </div>
