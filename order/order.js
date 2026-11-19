@@ -16,7 +16,6 @@ const B = window.UGCBrief;
 const STORE_KEY = 'ugc-order-wizard-v2';
 // Left over from the old two checkout flow; cleared so nothing stale remains.
 const PENDING_KEY = 'ugc-order-pending-v1';
-const FORM_TIMEOUT_MS = 4000;
 const CHECKOUT_TIMEOUT_MS = 45000;
 const $ = (q, ctx = document) => ctx.querySelector(q);
 const $$ = (q, ctx = document) => [...ctx.querySelectorAll(q)];
@@ -353,19 +352,17 @@ function ensureRef() {
   return state.ref;
 }
 
-// Send the brief to the Google Form. The response is opaque (no-cors), so this
-// waits for the requests to be handed off, with a time limit, and never blocks checkout.
-function sendBrief(bodies) {
-  const posts = bodies.map(body => fetch(B.FORM_ACTION, {
-    method: 'POST',
-    mode: 'no-cors',
-    keepalive: true,
-    credentials: 'omit',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString()
-  }).then(() => true, () => false));
-  const timeout = new Promise(resolve => setTimeout(() => resolve('timeout'), FORM_TIMEOUT_MS));
-  return Promise.race([Promise.all(posts), timeout]);
+// The brief goes to the checkout service in the POST body only. The service keeps it with the
+// Stripe Checkout Session and reports it as an order only once Stripe says checkout completed.
+function briefForCheckout() {
+  return {
+    scriptText: state.scriptText || '',
+    scriptLink: state.scriptLink || '',
+    scriptFileName: state.scriptFileName || '',
+    physical: state.physical || '',
+    details: state.details || '',
+    detailLinks: state.detailLinks || ''
+  };
 }
 
 function resetButton() {
@@ -389,32 +386,21 @@ async function checkout() {
   busy = true;
   button.disabled = true;
   button.setAttribute('aria-busy', 'true');
-  button.textContent = 'Saving your brief…';
   track('begin_checkout', { checkout_provider: 'stripe', currency: 'USD', value: v.quote.total, order_type: v.quote.lines.map(l => l.key).join('+'), checkout_count: 1 });
 
-  let result = 'skipped';
-  try {
-    // Honeypot filled: a bot, so skip the brief but behave the same.
-    if (!$('#field-website').value) result = await sendBrief(B.formBodies(ref, state, P));
-  } catch (_) {
-    result = 'error';
-  }
-  if (result === 'error' || (Array.isArray(result) && !result.every(Boolean))) {
-    err.textContent = 'Your brief could not be saved. Check your connection and try again, or email alexanderlmiller500@gmail.com.';
-    resetButton();
-    return;
-  }
   button.textContent = 'Opening secure checkout…';
   save();
   try { sessionStorage.removeItem(PENDING_KEY); } catch (_) { /* ignore */ }
   let url = '';
   try {
-    url = await createCheckout({ ...v.quote.request, ref, email: state.email });
+    // Honeypot filled: a bot, so send no brief but behave the same.
+    const brief = $('#field-website').value ? undefined : briefForCheckout();
+    url = await createCheckout({ ...v.quote.request, ref, email: state.email, brief });
   } catch (_) {
     url = '';
   }
   if (!url) {
-    err.textContent = 'Secure checkout could not be opened. Your brief is saved, so please try again in a moment, or email alexanderlmiller500@gmail.com to order.';
+    err.textContent = 'Secure checkout could not be opened. Your answers are saved on this page, so please try again in a moment, or email alexanderlmiller500@gmail.com to order.';
     resetButton();
     return;
   }
