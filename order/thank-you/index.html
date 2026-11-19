@@ -17,6 +17,7 @@
     // The order is paid; forget the answers saved in this tab.
     try { sessionStorage.removeItem('ugc-order-wizard-v2'); } catch (_) {}
   </script>
+  <script defer src="step.js"></script>
   <script defer src="../../analytics.js"></script>
 </head>
 <body class="order-page thank-you-page">
@@ -29,6 +30,10 @@
       <section class="wizard-card thank-you-card" aria-labelledby="thanks-title">
         <span class="kicker">ORDER <span>/ CONFIRMED</span></span>
         <h1 class="wizard-question" id="thanks-title">Thank you for your order!</h1>
+        <div class="thank-you-step" id="broll-step" hidden>
+          <p><strong>One more step: checkout 2 of 2.</strong> Your videos are paid. Finish your order by paying for your <span id="broll-step-qty"></span> b-roll clips, <strong id="broll-step-amount"></strong>. The quantity is already set on Stripe.</p>
+          <a class="button button-order-ugc" id="broll-step-link" href="#">Pay for b-roll clips <span aria-hidden="true">↗</span></a>
+        </div>
         <p class="thank-you-message" id="thank-you-message">Alex will reach out to you by email within 24 hours to confirm shipping address and gather any other details from you. His email is <a href="mailto:alexanderlmiller500@gmail.com">alexanderlmiller500@gmail.com</a>, so reach out if you have urgent information to pass along</p>
         <a class="button button-outline" href="../../">Back to the homepage</a>
       </section>

@@ -55,6 +55,7 @@
     ];
     q.lines.forEach(l => lines.push(`- ${l.label}: ${l.quantity} × ${P.money(l.unitPrice)} = ${P.money(l.subtotal)}`));
     lines.push(`Expected Stripe total: ${P.money(q.total)}`);
+    if (q.checkouts && q.checkouts.length > 1) lines.push(`Paid in ${q.checkouts.length} Stripe checkouts with this reference: ${q.checkouts.map((c, i) => `${i + 1}) ${c.key === 'broll' ? 'b-roll' : 'videos'} ${P.money(c.amount)}`).join(', ')}`);
     lines.push(`Ship a physical product to Alex: ${b.physical === 'yes' ? 'Yes' : 'No'}`);
     if (b.scriptFileName) lines.push(`Script file: ${b.scriptFileName}`);
     if (b.scriptLink) lines.push(`Script link: ${b.scriptLink}`);

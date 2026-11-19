@@ -1044,3 +1044,6 @@
 .wizard-option small b{display:block;margin-top:4px;font-weight:700;color:inherit}
 .wizard-chip small.wizard-chip-raw{font-size:12px;opacity:.65}
 .hero-h1-label{display:block;font-family:var(--sans);font-size:15px;font-weight:600;line-height:1.4;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}@media(max-width:760px){.hero-h1-label{font-size:14px;letter-spacing:.1em;margin-bottom:10px}}
+.wizard-help a,.thank-you-step a:not(.button){text-decoration:underline;text-underline-offset:3px}
+.thank-you-step{margin:0 0 24px;padding:20px;border:1px solid var(--ink);border-radius:6px;background:#fff;font-size:16px}
+.thank-you-step p{margin:0 0 14px}

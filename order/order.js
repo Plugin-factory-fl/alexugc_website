@@ -13,6 +13,8 @@
 const P = window.UGCPricing;
 const B = window.UGCBrief;
 const STORE_KEY = 'ugc-order-wizard-v2';
+// Second checkout (b-roll) for orders with videos and b-roll. Read by /order/thank-you/.
+const PENDING_KEY = 'ugc-order-pending-v1';
 const FORM_TIMEOUT_MS = 4000;
 const $ = (q, ctx = document) => ctx.querySelector(q);
 const $$ = (q, ctx = document) => [...ctx.querySelectorAll(q)];
@@ -64,7 +66,7 @@ function load() {
     state.length = P.LENGTHS.includes(Number(d.length)) ? Number(d.length) : DEFAULTS.length;
     state.type = P.TYPES[d.type] ? d.type : '';
     state.ref = typeof d.ref === 'string' && P.REF_RE.test(d.ref) ? d.ref : '';
-    state.clips = clampInt(d.clips, L.minClips, L.maxClips, DEFAULTS.clips);
+    state.clips = P.snapClips(clampInt(d.clips, L.minClips, L.maxClips, DEFAULTS.clips));
     state.scriptText = typeof d.scriptText === 'string' ? d.scriptText.slice(0, L.script) : '';
     state.scriptLink = typeof d.scriptLink === 'string' ? d.scriptLink.slice(0, L.scriptLink) : '';
     state.scriptFileName = typeof d.scriptFileName === 'string' ? d.scriptFileName.slice(0, L.fileName) : '';
@@ -148,10 +150,20 @@ function renderReview() {
   if (q.ok) {
     q.lines.forEach(l => {
       addRow(dl, l.key === 'broll' ? 'B-roll clips' : 'Videos', `${l.quantity} × ${l.label} at ${P.money(l.unitPrice)} = ${P.money(l.subtotal)}`);
+    });
+    const two = q.checkouts.length > 1;
+    $('#stripe-steps-intro').textContent = two
+      ? 'Your order is paid in two secure Stripe checkouts. Quantities are already set, so there is nothing to change on Stripe.'
+      : 'Quantities are already set on Stripe\'s page, so there is nothing to change there.';
+    q.checkouts.forEach((c, i) => {
       const li = document.createElement('li');
-      li.textContent = `${l.stripeName}: quantity ${l.quantity}`;
+      const what = c.key === 'broll' ? `${c.quantity} b-roll clip${c.quantity === 1 ? '' : 's'}` : `${c.quantity} × ${c.stripeName}`;
+      li.textContent = `${two ? `Checkout ${i + 1}: ` : ''}${what}, ${P.money(c.amount)}`;
       qtyList.append(li);
     });
+    $('#stripe-steps-after').textContent = two
+      ? `After checkout 1 you come back here and continue to checkout 2. Together they total ${P.money(q.total)}.`
+      : `Stripe's total will read ${P.money(q.total)}.`;
   }
   const scriptParts = [];
   if (state.scriptText.trim()) scriptParts.push(`${state.scriptText.length.toLocaleString('en-US')} characters pasted`);
@@ -162,7 +174,6 @@ function renderReview() {
   addRow(dl, 'Additional details', state.details.trim() || state.detailLinks.trim() ? 'Added' : 'None');
   addRow(dl, 'Email', state.email);
   $('#review-total').textContent = q.ok ? P.money(q.total) : '—';
-  $('#stripe-expected-total').textContent = q.ok ? P.money(q.total) : '—';
   $('#review-ref').textContent = ensureRef();
 }
 
@@ -245,7 +256,7 @@ function validateStep(name) {
     case 'videos': {
       state.quantity = clampInt($('#field-quantity').value, P.LIMITS.minQty, P.LIMITS.maxQty, 0);
       $('#field-quantity').value = String(state.quantity);
-      state.clips = clampInt($('#field-clips').value, P.LIMITS.minClips, P.LIMITS.maxClips, 0);
+      state.clips = P.snapClips(clampInt($('#field-clips').value, P.LIMITS.minClips, P.LIMITS.maxClips, 0));
       $('#field-clips').value = String(state.clips);
       if (state.quantity === 0 && state.clips === 0) {
         setError('#error-videos', 'Add at least one video or one b-roll clip to continue.');
@@ -377,8 +388,9 @@ async function checkout() {
     err.textContent = 'Something is missing. Use Back to check your answers.';
     return;
   }
-  const link = P.paymentLink(state);
-  if (!link || !/^https:\/\/buy\.stripe\.com\//.test(link)) {
+  const checkouts = v.quote.checkouts || [];
+  const link = checkouts.length ? checkouts[0].url : '';
+  if (!link || !checkouts.every(c => /^https:\/\/buy\.stripe\.com\//.test(c.url))) {
     err.textContent = 'Online checkout is not available for this order. Email alexanderlmiller500@gmail.com to order, or use Fiverr or Upwork below.';
     return;
   }
@@ -388,7 +400,7 @@ async function checkout() {
   button.disabled = true;
   button.setAttribute('aria-busy', 'true');
   button.textContent = 'Saving your brief…';
-  track('begin_checkout', { checkout_provider: 'stripe', currency: 'USD', value: v.quote.total, order_type: v.quote.linkKey.replace(/_\d+/, '') });
+  track('begin_checkout', { checkout_provider: 'stripe', currency: 'USD', value: v.quote.total, order_type: checkouts.map(c => c.key).join('+'), checkout_count: checkouts.length });
 
   let result = 'skipped';
   try {
@@ -404,6 +416,14 @@ async function checkout() {
   }
   button.textContent = 'Opening secure checkout…';
   save();
+  try {
+    if (checkouts.length > 1) {
+      const c = checkouts[1];
+      sessionStorage.setItem(PENDING_KEY, JSON.stringify({ ref, url: c.url, amount: c.amount, quantity: c.quantity, total: v.quote.total }));
+    } else {
+      sessionStorage.removeItem(PENDING_KEY);
+    }
+  } catch (_) { /* private mode: the thank-you page falls back to email */ }
   window.location.assign(`${link}?client_reference_id=${encodeURIComponent(ref)}`);
 }
 
@@ -414,6 +434,8 @@ function bind() {
   $('#wizard-back').addEventListener('click', back);
   $('#wizard-restart').addEventListener('click', () => {
     clearSaved();
+    try { sessionStorage.removeItem(PENDING_KEY); } catch (_) { /* ignore */ }
+    $('#clips-note').textContent = '';
     Object.assign(state, DEFAULTS);
     fillForm();
     $('#file-status').textContent = '';
@@ -453,7 +475,12 @@ function bind() {
     if (t.name === 'type') { state.type = t.value; setError('#error-type', ''); }
     if (t.name === 'physical') { state.physical = t.value; setError('#error-physical', ''); }
     if (t.name === 'quantity') { state.quantity = clampInt(t.value, P.LIMITS.minQty, P.LIMITS.maxQty, 0); t.value = String(state.quantity); }
-    if (t.name === 'clips') { state.clips = clampInt(t.value, P.LIMITS.minClips, P.LIMITS.maxClips, 0); t.value = String(state.clips); }
+    if (t.name === 'clips') {
+      const typed = Math.floor(Number(t.value)) || 0;
+      state.clips = P.snapClips(clampInt(t.value, P.LIMITS.minClips, P.LIMITS.maxClips, 0));
+      t.value = String(state.clips);
+      $('#clips-note').textContent = typed !== state.clips ? `Set to ${state.clips}, the closest available number of clips.` : '';
+    }
     save();
     updateLive();
     if (t.name === 'quantity') renderChrome();
@@ -465,7 +492,8 @@ function bind() {
     save(); updateLive(); renderChrome();
   }));
   $$('[data-clips-step]').forEach(b => b.addEventListener('click', () => {
-    state.clips = clampInt(state.clips + Number(b.dataset.clipsStep), P.LIMITS.minClips, P.LIMITS.maxClips, 0);
+    state.clips = P.stepClips(state.clips, Number(b.dataset.clipsStep));
+    $('#clips-note').textContent = '';
     $('#field-clips').value = String(state.clips);
     setError('#error-videos', '');
     save(); updateLive();
