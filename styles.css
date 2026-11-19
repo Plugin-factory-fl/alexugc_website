@@ -1045,3 +1045,5 @@
 .wizard-chip small.wizard-chip-raw{font-size:14px;opacity:.65}
 .hero-h1-label{display:block;font-family:var(--sans);font-size:15px;font-weight:600;line-height:1.4;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}@media(max-width:760px){.hero-h1-label{font-size:14px;letter-spacing:.1em;margin-bottom:10px}}
 .wizard-help a{text-decoration:underline;text-underline-offset:3px}
+
+.delivery-note{margin:14px 0 0;font-size:15px;line-height:1.5;font-weight:600}.wizard-delivery{margin:0 0 14px;font-size:15px;line-height:1.5;font-weight:600;color:var(--ink)}@media(max-width:760px){.delivery-note,.wizard-delivery{font-size:14px}}

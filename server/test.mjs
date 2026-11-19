@@ -13,7 +13,7 @@ const mock = http.createServer((req, res) => {
     if (req.url === '/v1/checkout/sessions') {
       const p = new URLSearchParams(b); sessions.push(p);
       let total = 0; for (let i = 0; p.get(`line_items[${i}][price]`); i++) total += AMOUNTS[p.get(`line_items[${i}][price]`)] * Number(p.get(`line_items[${i}][quantity]`));
-      return res.end(JSON.stringify({ id: 'cs_test', url: 'https://checkout.stripe.com/c/pay/cs_test_x', amount_total: total }));
+      return res.end(JSON.stringify({ id: 'cs_test', url: 'https://checkout.stripe.com/c/pay/cs_test_x', amount_total: total, amount_subtotal: total }));
     }
     res.writeHead(404); res.end('{}');
   });
