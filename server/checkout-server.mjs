@@ -7,13 +7,14 @@
  * Price ids on the MegaMix account); the browser sends item choices and counts only.
  *
  *   GET  /health        -> {"ok":true,"configured":bool,"pricesVerified":bool}
- *   POST /api/checkout  body {type, length, quantity, clips, ref}
+ *   POST /api/checkout  body {type, length, quantity, clips, ref, email?}
  *                       -> {"ok":true,"url":"https://checkout.stripe.com/..."}
  *
  * Env: STRIPE_SECRET_KEY (restricted key: Checkout Sessions write, Prices read). Never logged.
  * Optional: ALLOWED_ORIGINS (comma list), SITE_URL, STRIPE_API_BASE (tests only).
  */
 import http from 'node:http';
+import { createHash } from 'node:crypto';
 
 const PORT = Number(process.env.PORT || 10000);
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || '';
@@ -43,6 +44,13 @@ const PRICES = Object.freeze({
 });
 const LIMITS = Object.freeze({ maxVideos: 50, maxClips: 200 });
 const REF_RE = /^UGC-[0-9]{6}-[A-Z0-9]{8}$/;
+// Basic email shape check for prefilling Stripe Checkout. Invalid or missing emails are simply omitted.
+const EMAIL_RE = /^[^\s@<>()\[\],;:"]+@[^\s@<>()\[\],;:"]+\.[A-Za-z]{2,}$/;
+const EMAIL_MAX = 254;
+export function cleanEmail(v) {
+  const e = typeof v === 'string' ? v.trim() : '';
+  return e.length > 0 && e.length <= EMAIL_MAX && EMAIL_RE.test(e) ? e : '';
+}
 
 let pricesVerified = false;
 let verifyError = '';
@@ -105,13 +113,15 @@ export function buildOrder(body) {
   }
   if (clips > 0) lines.push({ price: PRICES.broll.id, quantity: clips, cents: PRICES.broll.cents });
   const totalCents = lines.reduce((s, l) => s + l.cents * l.quantity, 0);
-  return { ref, lines, totalCents, summary: { type: quantity ? b.type : '', length: quantity ? Number(b.length) : 0, quantity, clips } };
+  return { ref, email: cleanEmail(b.email), lines, totalCents, summary: { type: quantity ? b.type : '', length: quantity ? Number(b.length) : 0, quantity, clips } };
 }
 
 async function createSession(order) {
   const f = new URLSearchParams();
   f.set('mode', 'payment');
   f.set('client_reference_id', order.ref);
+  // Prefill the email the buyer gave in the order wizard (POST body only; never logged).
+  if (order.email) f.set('customer_email', order.email);
   f.set('success_url', `${SITE}/order/thank-you/`);
   f.set('cancel_url', `${SITE}/order/?checkout=canceled`);
   f.set('billing_address_collection', 'auto');
@@ -128,13 +138,14 @@ async function createSession(order) {
   f.set('custom_fields[0][type]', 'text');
   f.set('custom_fields[0][optional]', 'true');
   f.set('custom_fields[0][text][maximum_length]', '120');
-  f.set('custom_text[submit][message]', `Order reference ${order.ref}. Your brief is saved with this reference. Delivery in 5 to 7 days. If your order needs more time, I will email you personally.`);
+  f.set('custom_text[submit][message]', `Order reference ${order.ref}. Your brief is saved with this reference. Delivery in 5 to 7 days by email as a Google Drive link, unless we agree otherwise. If your order needs more time, I will email you personally.`);
   const meta = { order_ref: order.ref, website: 'alexugc_website', flow: 'order_wizard_checkout_v4',
     video_type: order.summary.type, video_length: String(order.summary.length || ''), videos: String(order.summary.quantity), broll_clips: String(order.summary.clips),
     expected_total_cents: String(order.totalCents) };
   for (const [k, v] of Object.entries(meta)) { f.set(`metadata[${k}]`, v); f.set(`payment_intent_data[metadata][${k}]`, v); }
   f.set('payment_intent_data[description]', `alexugcpro.com order ${order.ref}`);
-  const key = `ugc-${order.ref}-${order.lines.map(l => `${l.price}x${l.quantity}`).join('-')}-${Math.floor(Date.now() / 600000)}`;
+  const emailTag = order.email ? createHash('sha256').update(order.email.toLowerCase()).digest('hex').slice(0, 12) : 'none';
+  const key = `ugc-${order.ref}-${order.lines.map(l => `${l.price}x${l.quantity}`).join('-')}-${emailTag}-${Math.floor(Date.now() / 600000)}`;
   const s = await stripe('/v1/checkout/sessions', { method: 'POST', form: f, idempotencyKey: key });
   if (!s.url || !/^https:\/\/checkout\.stripe\.com\//.test(s.url)) throw new Error('Unexpected Stripe response');
   if (typeof s.amount_subtotal === 'number' && s.amount_subtotal !== order.totalCents) throw new Error('Total mismatch');
@@ -142,13 +153,14 @@ async function createSession(order) {
 }
 
 // Tiny in-memory rate limit: 20 checkout attempts per IP per 10 minutes.
+const RATE_LIMIT = Number(process.env.RATE_LIMIT || 20);
 const hits = new Map();
 function limited(ip) {
   const now = Date.now();
   const arr = (hits.get(ip) || []).filter(t => now - t < 600000);
   arr.push(now); hits.set(ip, arr);
   if (hits.size > 5000) hits.clear();
-  return arr.length > 20;
+  return arr.length > RATE_LIMIT;
 }
 
 function send(res, status, obj, origin) {
@@ -188,7 +200,7 @@ export const server = http.createServer((req, res) => {
         console.log(`session created ref=${order.ref} total=${order.totalCents}`);
         return send(res, 200, { ok: true, url: s.url }, origin);
       } catch (e) {
-        console.error(`session failed ref=${order.ref}: ${e.message}`);
+        console.error(`session failed ref=${order.ref}: ${String(e.message).replace(/\S+@\S+/g, "[email]")}`);
         return send(res, 502, { ok: false, error: 'Checkout could not be started. Please try again.' }, origin);
       }
     });

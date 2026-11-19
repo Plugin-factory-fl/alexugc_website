@@ -19,7 +19,7 @@ const mock = http.createServer((req, res) => {
   });
 });
 await new Promise(r => mock.listen(18999, r));
-const child = spawn(process.execPath, ['checkout-server.mjs'], { env: { ...process.env, PORT: '18998', STRIPE_SECRET_KEY: 'rk_mock_not_real', STRIPE_API_BASE: 'http://127.0.0.1:18999' }, stdio: ['ignore', 'pipe', 'inherit'] });
+const child = spawn(process.execPath, ['checkout-server.mjs'], { env: { ...process.env, PORT: '18998', RATE_LIMIT: '1000', STRIPE_SECRET_KEY: 'rk_mock_not_real', STRIPE_API_BASE: 'http://127.0.0.1:18999' }, stdio: ['ignore', 'pipe', 'inherit'] });
 await new Promise(r => child.stdout.on('data', d => { if (String(d).includes('prices verified')) r(); }));
 const O = 'https://alexugcpro.com';
 const post = (body, origin = O) => fetch('http://127.0.0.1:18998/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: origin }, body: JSON.stringify(body) }).then(async r => ({ status: r.status, cors: r.headers.get('access-control-allow-origin'), json: await r.json() }));
@@ -37,6 +37,14 @@ try {
   assert.equal(s.get('success_url'), 'https://alexugcpro.com/order/thank-you/');
   assert.equal(s.get('cancel_url'), 'https://alexugcpro.com/order/?checkout=canceled');
   assert.equal(s.get('metadata[expected_total_cents]'), '27000');
+  assert.equal(s.get('customer_email'), null);
+  assert.match(s.get('custom_text[submit][message]'), /Delivery in 5 to 7 days by email as a Google Drive link, unless we agree otherwise\. If your order needs more time, I will email you personally\.$/);
+  assert.ok(s.get('custom_text[submit][message]').length <= 1200);
+  assert.equal(s.get('allow_promotion_codes'), 'true');
+  r = await post({ type: 'full', length: 30, quantity: 1, ref, email: '  buyer.test@example.com ' }); assert.equal(r.status, 200); assert.equal(sessions.at(-1).get('customer_email'), 'buyer.test@example.com');
+  for (const badEmail of ['not an email', 'a@b', 'x@y.c', 'a b@c.com', '<a@b.com>', 'a'.repeat(250) + '@example.com', 42, null]) {
+    r = await post({ type: 'full', length: 30, quantity: 1, ref, email: badEmail }); assert.equal(r.status, 200, String(badEmail)); assert.equal(sessions.at(-1).get('customer_email'), null, String(badEmail));
+  }
   r = await post({ quantity: 0, clips: 200, ref }); assert.equal(r.status, 200); assert.equal(sessions.at(-1).get('line_items[0][quantity]'), '200');
   r = await post({ type: 'raw', length: 120, quantity: 50, clips: 0, ref }); assert.equal(r.status, 200); assert.equal(sessions.at(-1).get('line_items[1][price]'), null);
   for (const bad of [{ type: 'full', length: 30, quantity: 51, ref }, { quantity: 0, clips: 201, ref }, { quantity: 0, clips: 0, ref }, { type: 'full', length: 31, quantity: 1, ref }, { type: 'pet', length: 30, quantity: 1, ref }, { type: 'full', length: 30, quantity: 1.5, ref }, { type: 'full', length: 30, quantity: 1, ref: 'x' }, { type: 'full', length: 30, quantity: -1, clips: 5, ref }, { type: 'full', length: 30, quantity: 1, ref, price: 'price_hack' }]) {

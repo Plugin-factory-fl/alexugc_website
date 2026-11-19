@@ -409,7 +409,7 @@ async function checkout() {
   try { sessionStorage.removeItem(PENDING_KEY); } catch (_) { /* ignore */ }
   let url = '';
   try {
-    url = await createCheckout({ ...v.quote.request, ref });
+    url = await createCheckout({ ...v.quote.request, ref, email: state.email });
   } catch (_) {
     url = '';
   }
