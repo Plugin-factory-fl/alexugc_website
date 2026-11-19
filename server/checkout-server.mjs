@@ -116,6 +116,8 @@ async function createSession(order) {
   f.set('cancel_url', `${SITE}/order/?checkout=canceled`);
   f.set('billing_address_collection', 'auto');
   f.set('submit_type', 'pay');
+  // Promotion codes (e.g. a one time 100% test code). A $0 total completes without a card.
+  f.set('allow_promotion_codes', 'true');
   order.lines.forEach((l, i) => {
     f.set(`line_items[${i}][price]`, l.price);
     f.set(`line_items[${i}][quantity]`, String(l.quantity));
@@ -126,7 +128,7 @@ async function createSession(order) {
   f.set('custom_fields[0][type]', 'text');
   f.set('custom_fields[0][optional]', 'true');
   f.set('custom_fields[0][text][maximum_length]', '120');
-  f.set('custom_text[submit][message]', `Order reference ${order.ref}. Your brief is saved with this reference.`);
+  f.set('custom_text[submit][message]', `Order reference ${order.ref}. Your brief is saved with this reference. Delivery in 5 to 7 days. If your order needs more time, I will email you personally.`);
   const meta = { order_ref: order.ref, website: 'alexugc_website', flow: 'order_wizard_checkout_v4',
     video_type: order.summary.type, video_length: String(order.summary.length || ''), videos: String(order.summary.quantity), broll_clips: String(order.summary.clips),
     expected_total_cents: String(order.totalCents) };
@@ -135,7 +137,7 @@ async function createSession(order) {
   const key = `ugc-${order.ref}-${order.lines.map(l => `${l.price}x${l.quantity}`).join('-')}-${Math.floor(Date.now() / 600000)}`;
   const s = await stripe('/v1/checkout/sessions', { method: 'POST', form: f, idempotencyKey: key });
   if (!s.url || !/^https:\/\/checkout\.stripe\.com\//.test(s.url)) throw new Error('Unexpected Stripe response');
-  if (typeof s.amount_total === 'number' && s.amount_total !== order.totalCents) throw new Error('Total mismatch');
+  if (typeof s.amount_subtotal === 'number' && s.amount_subtotal !== order.totalCents) throw new Error('Total mismatch');
   return s;
 }
 
