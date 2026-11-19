@@ -1,0 +1,9 @@
+{
+  "name": "alexugc-checkout",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Creates one Stripe Checkout Session per alexugcpro.com order, with exact quantities and server side prices.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": { "start": "node checkout-server.mjs", "test": "node test.mjs" }
+}
